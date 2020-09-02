@@ -1,0 +1,23 @@
+From d5f02c22e46b8245e2f7d8df55234b4100c8a708 Mon Sep 17 00:00:00 2001
+From: "R. Adi Permana" <romadhonadipermana279f@gmail.com>
+Date: Wed, 19 Aug 2020 16:06:57 +0700
+Subject: [PATCH 003/110] Update .gitignore
+
+---
+ .gitignore | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/.gitignore b/.gitignore
+index 4105cfbd6f26..0f49d92f402c 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -118,3 +118,6 @@ all.config
+ 
+ # fetched Android config fragments
+ kernel/configs/android-*.cfg
++
++*.sh
++out
+-- 
+2.20.1
+

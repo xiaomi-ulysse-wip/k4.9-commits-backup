@@ -1,0 +1,26 @@
+From 3630990523e3db4105ef1d60426c3b3e5e168ff2 Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Tue, 25 Aug 2020 20:29:11 +0800
+Subject: [PATCH 087/110] ARM64: configs: ulysse: Enable PRONTO WLAN
+
+Rest of PRONTO configs are defined in drivers/staging/prima/Kbuild
+---
+ arch/arm64/configs/ulysse_defconfig | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/arch/arm64/configs/ulysse_defconfig b/arch/arm64/configs/ulysse_defconfig
+index 8de18663fc2b..07ee62e34abf 100644
+--- a/arch/arm64/configs/ulysse_defconfig
++++ b/arch/arm64/configs/ulysse_defconfig
+@@ -666,6 +666,8 @@ CONFIG_CRYPTO_AES_ARM64_NEON_BLK=y
+ CONFIG_CRYPTO_CRC32_ARM64=y
+ CONFIG_QMI_ENCDEC=y
+ 
++CONFIG_PRONTO_WLAN=y
++
+ # ulysse
+ CONFIG_CMDLINE="androidboot.usbconfigfs=true"
+ CONFIG_CMDLINE_EXTEND=y
+-- 
+2.20.1
+

@@ -1,0 +1,26 @@
+From ef026c5fd023f2634fbc75d1eac63282924fbabb Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Tue, 25 Aug 2020 18:51:23 +0800
+Subject: [PATCH 084/110] input: ft5435_ulysse: Remove g_lcd_id definition
+
+Read from MDSS driver now
+---
+ drivers/input/touchscreen/ft5435_ulysse/focaltech_core.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/drivers/input/touchscreen/ft5435_ulysse/focaltech_core.c b/drivers/input/touchscreen/ft5435_ulysse/focaltech_core.c
+index 290c5ebccc68..7a6ac5dcd709 100644
+--- a/drivers/input/touchscreen/ft5435_ulysse/focaltech_core.c
++++ b/drivers/input/touchscreen/ft5435_ulysse/focaltech_core.c
+@@ -47,8 +47,6 @@ struct i2c_client *fts_i2c_client;
+ struct fts_ts_data *fts_wq_data;
+ struct input_dev *fts_input_dev;
+ 
+-char g_lcd_id[128] = "shenchao";
+-
+ #if WANGHAN_FT5435_PINCTRL
+ struct pctrl_data {
+ 	struct pinctrl *tpctrl;
+-- 
+2.20.1
+

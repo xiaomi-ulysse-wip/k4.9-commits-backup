@@ -1,0 +1,47 @@
+From f49460aedf9c2b35f55cb772cc2287bf935eced5 Mon Sep 17 00:00:00 2001
+From: "R. Adi Permana" <romadhonadipermana279f@gmail.com>
+Date: Wed, 2 Sep 2020 04:46:52 +0700
+Subject: [PATCH 109/110] techpack: Fix multiple definition
+
+---
+ techpack/audio/asoc/codecs/sdm660_cdc/msm-analog-cdc.c | 4 ++--
+ techpack/audio/asoc/codecs/wcd-mbhc-legacy.c           | 1 -
+ 2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/techpack/audio/asoc/codecs/sdm660_cdc/msm-analog-cdc.c b/techpack/audio/asoc/codecs/sdm660_cdc/msm-analog-cdc.c
+index f4dd456bb2d1..e25d10f994f7 100644
+--- a/techpack/audio/asoc/codecs/sdm660_cdc/msm-analog-cdc.c
++++ b/techpack/audio/asoc/codecs/sdm660_cdc/msm-analog-cdc.c
+@@ -102,7 +102,7 @@ static char on_demand_supply_name[][MAX_ON_DEMAND_SUPPLY_NAME_LENGTH] = {
+ static int external_spk_control = 1;
+ static int external_hs_control = 0;
+ 
+-int smg_in_gpio = 1;
++int smg_in_gpio1 = 1;
+ #endif
+ 
+ static struct wcd_mbhc_register
+@@ -1940,7 +1940,7 @@ static int set_external_hp_analog_switch(struct snd_kcontrol *kcontrol,
+ 					   struct snd_ctl_elem_value *ucontrol)
+ {
+ 	bool hp_analog_control = ucontrol->value.integer.value[0];
+-	gpio_set_value(smg_in_gpio,!hp_analog_control);
++	gpio_set_value(smg_in_gpio1,!hp_analog_control);
+ 	return 0;
+ }
+ #endif
+diff --git a/techpack/audio/asoc/codecs/wcd-mbhc-legacy.c b/techpack/audio/asoc/codecs/wcd-mbhc-legacy.c
+index f1ccd7519e6a..737b117270fd 100644
+--- a/techpack/audio/asoc/codecs/wcd-mbhc-legacy.c
++++ b/techpack/audio/asoc/codecs/wcd-mbhc-legacy.c
+@@ -245,7 +245,6 @@ static bool wcd_is_special_headset(struct wcd_mbhc *mbhc)
+ 			&mbhc->zl, &mbhc->zr);
+ 			if ((mbhc->zl > 20000) && (mbhc->zr > 20000)) {
+ 				pr_debug("%s: Selfie stick detected\n",__func__);
+-				break;
+ 			}
+ 		}
+ #endif
+-- 
+2.20.1
+

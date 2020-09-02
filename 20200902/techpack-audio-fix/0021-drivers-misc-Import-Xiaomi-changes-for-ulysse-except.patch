@@ -1,0 +1,540 @@
+From d1ee8e4f0d3c3569738964ff77d4ef55b2d8e9b6 Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Fri, 24 Jul 2020 10:33:35 +0800
+Subject: [PATCH 021/110] drivers: misc: Import Xiaomi changes for ulysse
+ except qseecom
+
+---
+ drivers/misc/Kconfig         |  13 ++
+ drivers/misc/Makefile        |   2 +
+ drivers/misc/ant_check.c     | 261 +++++++++++++++++++++++++++++++++++
+ drivers/misc/vibrator_gpio.c | 205 +++++++++++++++++++++++++++
+ 4 files changed, 481 insertions(+)
+ create mode 100644 drivers/misc/ant_check.c
+ create mode 100644 drivers/misc/vibrator_gpio.c
+
+diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
+index c0b539002f46..43be30e40e74 100644
+--- a/drivers/misc/Kconfig
++++ b/drivers/misc/Kconfig
+@@ -834,6 +834,11 @@ config MEMORY_STATE_TIME
+ 	help
+ 	  Memory time statistics exported to /sys/kernel/memory_state_time
+ 
++config VIB_GPIO
++	tristate "Vibrator timed gpio driver"
++	depends on GPIOLIB && ANDROID_TIMED_OUTPUT
++	default n
++
+ config QPNP_MISC
+ 	tristate "QPNP Misc Peripheral"
+ 	depends on MFD_SPMI_PMIC
+@@ -843,6 +848,14 @@ config QPNP_MISC
+ 	  and the driver provides an API to check if this interrupt
+ 	  is available on the current PMIC chip.
+ 
++config ANT_CHECK
++	tristate "ant check gpio"
++	help
++	  Say 'y' here to include support for the QTI QPNP MISC
++	  peripheral. The MISC peripheral holds the USB ID interrupt
++	  and the driver provides an API to check if this interrupt
++	  is available on the current PMIC chip.
++
+ source "drivers/misc/c2port/Kconfig"
+ source "drivers/misc/eeprom/Kconfig"
+ source "drivers/misc/cb710/Kconfig"
+diff --git a/drivers/misc/Makefile b/drivers/misc/Makefile
+index 033157242f5d..696ce1d5d9bc 100644
+--- a/drivers/misc/Makefile
++++ b/drivers/misc/Makefile
+@@ -57,6 +57,8 @@ obj-$(CONFIG_VEXPRESS_SYSCFG)	+= vexpress-syscfg.o
+ obj-$(CONFIG_CXL_BASE)		+= cxl/
+ obj-$(CONFIG_PANEL)             += panel.o
+ obj-$(CONFIG_QPNP_MISC) 	+= qpnp-misc.o
++obj-$(CONFIG_VIB_GPIO)		+= vibrator_gpio.o
++obj-$(CONFIG_ANT_CHECK)		+= ant_check.o
+ obj-$(CONFIG_FPR_FPC) 	+= fpr_FingerprintCard/
+ obj-$(CONFIG_MEMORY_STATE_TIME)	+= memory_state_time.o
+ 
+diff --git a/drivers/misc/ant_check.c b/drivers/misc/ant_check.c
+new file mode 100644
+index 000000000000..1a7b96d6ec6e
+--- /dev/null
++++ b/drivers/misc/ant_check.c
+@@ -0,0 +1,261 @@
++#include <linux/init.h>
++#include <linux/miscdevice.h>
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/platform_device.h>
++#include <linux/i2c.h>
++#include <linux/input.h>
++#include <linux/interrupt.h>
++#include <linux/gpio.h>
++#include <linux/wakelock.h>
++#include <linux/delay.h>
++#include <linux/of_gpio.h>
++#include <linux/of_device.h>
++#include <linux/workqueue.h>
++#include <linux/mutex.h>
++#include <linux/regulator/consumer.h>
++
++#include <linux/fb.h>
++
++
++#define CONFIG_ANT_SYS
++
++
++struct ant_check_info
++{
++	struct mutex io_lock;
++	u32 irq_gpio;
++	u32 irq_gpio_flags;
++	int irq;
++	int ant_check_state;
++	struct input_dev *ipdev;
++#ifdef CONFIG_ANT_SYS
++	struct class *ant_sys_class;
++#endif
++};
++
++struct ant_check_info *global_ant_info;
++
++static irqreturn_t ant_interrupt(int irq, void *data)
++{
++	struct ant_check_info *ant_info = data;
++	int ant_gpio;
++
++	ant_gpio = gpio_get_value_cansleep(ant_info->irq_gpio);
++	pr_err("Macle irq interrupt gpio = %d\n", ant_gpio);
++	if(ant_gpio == ant_info->ant_check_state) {
++		return IRQ_HANDLED;
++	} else{
++		ant_info->ant_check_state = ant_gpio;
++		pr_err("Macle report key s ");
++	}
++	if (ant_gpio) {
++			input_report_key(ant_info->ipdev, KEY_ANT_CONNECT, 1);
++			input_report_key(ant_info->ipdev, KEY_ANT_CONNECT, 0);
++			input_sync(ant_info->ipdev);
++	} else{
++			input_report_key(ant_info->ipdev, KEY_ANT_UNCONNECT, 1);
++			input_report_key(ant_info->ipdev, KEY_ANT_UNCONNECT, 0);
++			input_sync(ant_info->ipdev);
++	}
++
++
++     return IRQ_HANDLED;
++}
++
++static int ant_parse_dt(struct device *dev, struct ant_check_info *pdata)
++{
++	struct device_node *np = dev->of_node;
++
++	pdata->irq_gpio = of_get_named_gpio_flags(np, "ant_check_gpio",
++				0, &pdata->irq_gpio_flags);
++	if (pdata->irq_gpio < 0)
++		return pdata->irq_gpio;
++
++	pr_info("Macle irq_gpio=%d\n", pdata->irq_gpio);
++	return 0;
++}
++
++
++#ifdef CONFIG_ANT_SYS
++static ssize_t ant_state_show(struct class *class,
++		struct class_attribute *attr, char *buf)
++{
++	int state;
++	if (global_ant_info->ant_check_state) {
++		state = 3;
++	} else{
++		state = 2;
++	}
++	pr_err("Macle ant_state_show state = %d, custome_state=%d\n", global_ant_info->ant_check_state, state);
++	return sprintf(buf, "%d\n", state);
++}
++
++static struct class_attribute ant_state =
++	__ATTR(ant_state, S_IRUGO, ant_state_show, NULL);
++
++static int ant_register_class_dev(struct ant_check_info *ant_info) {
++	int err;
++	if (!ant_info->ant_sys_class) {
++		ant_info->ant_sys_class = class_create(THIS_MODULE, "ant_class");
++		if (IS_ERR(ant_info->ant_sys_class)) {
++			ant_info->ant_sys_class = NULL;
++			printk(KERN_ERR "could not allocate ant_class\n");
++			return -1;
++		}
++	}
++
++	err = class_create_file(ant_info->ant_sys_class, &ant_state);
++	if(err < 0) {
++		class_destroy(ant_info->ant_sys_class);
++		return -1;
++	}
++	return 0;
++}
++#endif
++
++static int ant_probe(struct platform_device *pdev)
++{
++	int rc = 0;
++	int err;
++	struct ant_check_info *ant_info;
++	pr_err("Macle ant_probe\n");
++
++	if (pdev->dev.of_node) {
++		ant_info = kzalloc(sizeof(struct ant_check_info), GFP_KERNEL);
++		if (!ant_info) {
++			pr_err("Macle %s: failed to alloc memory for module data\n",__func__);
++			return -ENOMEM;
++		}
++		err = ant_parse_dt(&pdev->dev, ant_info);
++		if (err) {
++			dev_err(&pdev->dev, "Macle ant_probe DT parsing failed\n");
++			goto free_struct;
++		}
++	} else{
++		return -ENOMEM;
++	}
++	mutex_init(&ant_info->io_lock);
++
++	platform_set_drvdata(pdev, ant_info);
++
++/*input system config*/
++	ant_info->ipdev = input_allocate_device();
++	if (!ant_info->ipdev) {
++		pr_err("ant_probe: input_allocate_device fail\n");
++		goto input_error;
++	}
++	ant_info->ipdev->name = "ant_check-input";
++	input_set_capability(ant_info->ipdev, EV_KEY, KEY_ANT_CONNECT);
++	input_set_capability(ant_info->ipdev, EV_KEY, KEY_ANT_UNCONNECT);
++	set_bit(INPUT_PROP_NO_DUMMY_RELEASE, ant_info->ipdev->propbit);
++	rc = input_register_device(ant_info->ipdev);
++	if (rc) {
++		pr_err("ant_probe: input_register_device fail rc=%d\n", rc);
++		goto input_error;
++	}
++
++
++
++
++/*interrupt config*/
++	if (gpio_is_valid(ant_info->irq_gpio)) {
++		rc = gpio_request(ant_info->irq_gpio, "ant_check");
++		if (rc < 0) {
++			pr_err("ant_probe: gpio_request fail rc=%d\n", rc);
++			 goto free_input_device;
++		}
++
++		rc = gpio_direction_input(ant_info->irq_gpio);
++		if (rc < 0) {
++			pr_err("ant_probe: gpio_direction_input fail rc=%d\n", rc);
++			goto err_irq;
++		}
++		ant_info->ant_check_state = gpio_get_value(ant_info->irq_gpio);
++		pr_err("ant_probe: gpios = %d, gpion=%d\n", ant_info->ant_check_state, ant_info->ant_check_state);
++
++		ant_info->irq = gpio_to_irq(ant_info->irq_gpio);
++		pr_err("Macle irq = %d\n", ant_info->irq);
++
++		rc = devm_request_threaded_irq(&pdev->dev, ant_info->irq, NULL,
++			ant_interrupt,
++			IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING|IRQF_ONESHOT, "ant-switch-irq", ant_info);
++		if (rc < 0) {
++			pr_err("ant_probe: request_irq fail rc=%d\n", rc);
++			goto err_irq;
++		}
++		device_init_wakeup(&pdev->dev, true);
++		irq_set_irq_wake(ant_info->irq,1);
++
++	} else{
++		pr_err("Macle irq gpio not provided\n");
++		goto free_input_device;
++	}
++       pr_err("ant_probe end\n");
++#ifdef CONFIG_ANT_SYS
++	ant_register_class_dev(ant_info);
++#endif
++	global_ant_info = ant_info;
++       return 0;
++err_irq:
++	disable_irq_wake(ant_info->irq);
++	device_init_wakeup(&pdev->dev, 0);
++	gpio_free(ant_info->irq_gpio);
++
++free_input_device:
++	input_unregister_device(ant_info->ipdev);
++
++input_error:
++	platform_set_drvdata(pdev, NULL);
++free_struct:
++	kfree(ant_info);
++
++	return rc;
++}
++
++static int ant_remove(struct platform_device *pdev)
++{
++	struct ant_check_info *ant = platform_get_drvdata(pdev);
++#ifdef CONFIG_ANT_SYS
++	class_destroy(ant->ant_sys_class);
++#endif
++	pr_err("ant_remove\n");
++	disable_irq_wake(ant->irq);
++	device_init_wakeup(&pdev->dev, 0);
++	free_irq(ant->irq, ant->ipdev);
++	gpio_free(ant->irq_gpio);
++	input_unregister_device(ant->ipdev);
++	return 0;
++}
++
++
++
++static struct of_device_id sn_match_table[] = {
++	{ .compatible = "ant_check", },
++	{ },
++};
++
++static struct platform_driver ant_driver = {
++	.probe                = ant_probe,
++	.remove                = ant_remove,
++	.driver                = {
++		.name        = "ant_check",
++		.owner        = THIS_MODULE,
++		.of_match_table = sn_match_table,
++	},
++};
++
++static int __init ant_init(void)
++{
++	return platform_driver_register(&ant_driver);
++}
++
++static void __exit ant_exit(void)
++{
++	platform_driver_unregister(&ant_driver);
++}
++
++module_init(ant_init);
++module_exit(ant_exit);
++MODULE_LICENSE("GPL v2");
++MODULE_AUTHOR("lisuyang");
+diff --git a/drivers/misc/vibrator_gpio.c b/drivers/misc/vibrator_gpio.c
+new file mode 100644
+index 000000000000..d5b4d38c6600
+--- /dev/null
++++ b/drivers/misc/vibrator_gpio.c
+@@ -0,0 +1,205 @@
++
++/* drivers/misc/timed_gpio.c
++ *
++ * Copyright (C) 2008 Google, Inc.
++ * Copyright (C) 2018 XiaoMi, Inc.
++ * Author: Mike Lockwood <lockwood@android.com>
++ *
++ * This software is licensed under the terms of the GNU General Public
++ * License version 2, as published by the Free Software Foundation, and
++ * may be copied, distributed, and modified under those terms.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ */
++
++#include <linux/module.h>
++#include <linux/platform_device.h>
++#include <linux/slab.h>
++#include <linux/hrtimer.h>
++#include <linux/err.h>
++#include <linux/gpio.h>
++
++#include <linux/of_gpio.h>
++#include "../staging/android/timed_output.h"
++
++
++
++struct vibrator_gpio_data {
++
++	struct hrtimer vib_timer;
++	struct timed_output_dev timed_dev;
++	struct work_struct work;
++	const char *name;
++	unsigned int gpio;
++	int		timeout;
++	u8		active_low;
++	spinlock_t lock;
++
++};
++
++static enum hrtimer_restart vibrator_timer_func(struct hrtimer *timer)
++{
++	struct vibrator_gpio_data *pdata =
++		container_of(timer, struct vibrator_gpio_data, vib_timer);
++	pr_err("vibrator_timer_func pdata->gpio=%d\n",pdata->gpio);
++
++	gpio_direction_output(pdata->gpio, pdata->active_low ? 1 : 0);
++
++	return HRTIMER_NORESTART;
++}
++
++static int vibrator_get_time(struct timed_output_dev *dev)
++{
++	struct vibrator_gpio_data *pdata;
++	struct timeval t;
++	pdata = container_of(dev, struct vibrator_gpio_data,
++					 timed_dev);
++
++	if (hrtimer_active(&pdata->vib_timer)) {
++		t = ktime_to_timeval(hrtimer_get_remaining(&pdata->vib_timer));
++
++		return t.tv_sec * 1000 + t.tv_usec / 1000;
++	} else
++
++		return 0;
++}
++
++
++static void vibrator_enable(struct timed_output_dev *dev, int value)
++{
++	struct vibrator_gpio_data *pdata = container_of(dev, struct vibrator_gpio_data,
++					 timed_dev);
++	unsigned long	flags;
++
++	spin_lock_irqsave(&pdata->lock, flags);
++
++	hrtimer_cancel(&pdata->vib_timer);
++	gpio_direction_output(pdata->gpio, pdata->active_low ? !value : !!value);
++	pr_err("gpio_enable data->gpio=%d\n",pdata->gpio);
++
++	if (value >= 0)
++	{
++		if (value > pdata->timeout)
++			value = pdata->timeout;
++
++		hrtimer_start(&pdata->vib_timer,
++			ktime_set(value / 1000, (value % 1000) * 1000000),
++			HRTIMER_MODE_REL);
++	}
++
++	spin_unlock_irqrestore(&pdata->lock, flags);
++}
++static int vibrator_parse_dt(struct device *dev,struct vibrator_gpio_data *pdata)
++{
++	struct device_node *node = dev->of_node;
++	int rc;
++
++	u32 temp_val;
++
++
++
++	pdata->gpio = of_get_named_gpio_flags(node,"qcom,vib-gpio_one",0, &temp_val);
++	pr_err(" gpio=%d flag=%d\n",pdata->gpio,temp_val);
++	if (!gpio_is_valid(pdata->gpio)) {
++		dev_err(dev, "Failed to read vib-gpio_one\n");
++		return -EINVAL;
++	}
++
++
++	if (NULL == (pdata->name = of_get_property(node, "label", NULL))) {
++		pr_err("get label error\n");
++		return 1;
++	}
++	pr_err("pdata-name=%s\n",pdata->name);
++	rc = of_property_read_u32(node,"qcom,vibrator-timeout-ms", &pdata->timeout);
++
++	if (rc) {
++		pdata->timeout = 10000;
++	}
++
++
++	return 0;
++}
++static int vibrator_gpio_probe(struct platform_device *pdev)
++{
++
++	struct vibrator_gpio_data *pdata;
++
++	int  ret;
++	pr_err("vibrator gpio probe enter\n");
++
++	pdata =devm_kzalloc(&pdev->dev, sizeof(struct vibrator_gpio_data), GFP_KERNEL);
++	if (!pdata)
++		return -ENOMEM;
++
++
++	ret= vibrator_parse_dt(&pdev->dev,pdata);
++	if (ret) {
++		dev_err(&pdev->dev,"DT parsing failed%d\n",ret);
++		return ret;
++	}
++
++	hrtimer_init(&pdata->vib_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
++
++	spin_lock_init(&pdata->lock);
++	pdata->vib_timer.function = vibrator_timer_func;
++
++	pdata->timed_dev.name = pdata->name;
++	pdata->timed_dev.get_time = vibrator_get_time;
++	pdata->timed_dev.enable = vibrator_enable;
++
++	ret = gpio_request(pdata->gpio, pdata->name);
++	if (ret < 0) {
++		gpio_free(pdata->gpio);
++		goto err_out;
++
++	}
++
++	ret = timed_output_dev_register(&pdata->timed_dev);
++	if (ret < 0) {
++		gpio_free(pdata->gpio);
++		goto err_out;
++
++	}
++	pdata->active_low = 0;
++	gpio_direction_output(pdata->gpio, 0);
++
++	platform_set_drvdata(pdev, pdata);
++	pr_err("vibrator gpio probe success");
++	return 0;
++err_out:
++	pr_err("timed_gpio_probe Failed \n");
++	timed_output_dev_unregister(&pdata->timed_dev);
++	kfree(pdata);
++	return ret;
++}
++static int vibrator_gpio_remove(struct platform_device *pdev)
++{
++	struct vibrator_gpio_data *pdata = platform_get_drvdata(pdev);
++	timed_output_dev_unregister(&pdata->timed_dev);
++	gpio_free(pdata->gpio);
++
++	return 0;
++}
++
++static  struct of_device_id vibrator_gpio_machine_of_match[]  = {
++	{ .compatible = "qcom,vibrator-gpio", },
++	{},
++};
++static struct platform_driver vibrator_gpio_driver = {
++	.probe = vibrator_gpio_probe,
++	.remove = vibrator_gpio_remove,
++	.driver = {
++		.name = "vibrator_gpio",
++		.of_match_table = vibrator_gpio_machine_of_match,
++	},
++};
++module_platform_driver(vibrator_gpio_driver);
++
++MODULE_AUTHOR("Jason LCT");
++MODULE_DESCRIPTION("Vibrator gpio driver");
++MODULE_LICENSE("GPL");
+-- 
+2.20.1
+

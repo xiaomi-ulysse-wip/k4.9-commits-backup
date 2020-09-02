@@ -1,0 +1,22 @@
+From e043ab4eb81cccfed1459232bdc9f7308b938c77 Mon Sep 17 00:00:00 2001
+From: "R. Adi Permana" <romadhonadipermana279f@gmail.com>
+Date: Wed, 19 Aug 2020 16:26:07 +0700
+Subject: [PATCH 012/110] defconfig: ulysse: Enable FT5435 touchscreen driver
+
+---
+ arch/arm64/configs/ulysse_defconfig | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/arch/arm64/configs/ulysse_defconfig b/arch/arm64/configs/ulysse_defconfig
+index 3e8b7edf8d73..f87807710819 100644
+--- a/arch/arm64/configs/ulysse_defconfig
++++ b/arch/arm64/configs/ulysse_defconfig
+@@ -669,3 +669,5 @@ CONFIG_QMI_ENCDEC=y
+ 
+ # ulysse
+ CONFIG_MACH_XIAOMI_ULYSSE=y
++CONFIG_TOUCHSCREEN_FT5435_ULYSSE=y
++CONFIG_TOUCHSCREEN_FT5435_ULYSSE_DIRECTORY="focaltech_touch"
+-- 
+2.20.1
+

@@ -1,0 +1,95 @@
+From cd19b7ce55bb34ad475708565e0b97141f816e02 Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Sat, 15 Aug 2020 22:58:56 +0800
+Subject: [PATCH 024/110] include: Import some Xiaomi changes for ulysse
+
+---
+ include/linux/pwm.h                    |  6 ++++++
+ include/media/pwm-ir.h                 | 26 ++++++++++++++++++++++++++
+ include/media/rc-core.h                |  3 +++
+ include/uapi/linux/input-event-codes.h |  5 +++++
+ 4 files changed, 40 insertions(+)
+ create mode 100644 include/media/pwm-ir.h
+
+diff --git a/include/linux/pwm.h b/include/linux/pwm.h
+index ef2743cc3390..bba5ecd3f38d 100644
+--- a/include/linux/pwm.h
++++ b/include/linux/pwm.h
+@@ -521,6 +521,12 @@ static inline int pwm_set_polarity(struct pwm_device *pwm,
+ 	return pwm_apply_state(pwm, &state);
+ }
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++long stop_ir_pwm_data(void);
++/* pwm_enable & pwm_disable - direct write pwm register to control pwm output is enabled and disabled*/
++long qpnp_ir_pwm_data(void *arg);
++#endif
++
+ /**
+  * pwm_enable() - start a PWM output toggling
+  * @pwm: PWM device
+diff --git a/include/media/pwm-ir.h b/include/media/pwm-ir.h
+new file mode 100644
+index 000000000000..290a93e15569
+--- /dev/null
++++ b/include/media/pwm-ir.h
+@@ -0,0 +1,26 @@
++/* Copyright (C) 2013 by Xiang Xiao <xiaoxiang@xiaomi.com>
++ * Copyright (C) 2018 XiaoMi, Inc.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++#ifndef __PWM_IR_H__
++#define __PWM_IR_H__
++
++#define PWM_IR_NAME	"pwm-ir"
++
++struct pwm_ir_data {
++	const char  *reg_id;
++	int          pwm_id;
++	bool         low_active;
++	bool         use_timer;
++};
++
++#endif
+diff --git a/include/media/rc-core.h b/include/media/rc-core.h
+index 40188d362486..62d45c83a760 100644
+--- a/include/media/rc-core.h
++++ b/include/media/rc-core.h
+@@ -166,6 +166,9 @@ struct rc_dev {
+ 	u32				max_timeout;
+ 	u32				rx_resolution;
+ 	u32				tx_resolution;
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	u32				open_count;
++#endif
+ 	int				(*change_protocol)(struct rc_dev *dev, u64 *rc_type);
+ 	int				(*change_wakeup_protocol)(struct rc_dev *dev, u64 *rc_type);
+ 	int				(*open)(struct rc_dev *dev);
+diff --git a/include/uapi/linux/input-event-codes.h b/include/uapi/linux/input-event-codes.h
+index 29ef1e3697af..48bbd7736ac1 100644
+--- a/include/uapi/linux/input-event-codes.h
++++ b/include/uapi/linux/input-event-codes.h
+@@ -336,6 +336,11 @@
+ 
+ #define KEY_MICMUTE		248	/* Mute / unmute the microphone */
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++#define KEY_ANT_CONNECT         0x292
++#define KEY_ANT_UNCONNECT       0x293
++#endif
++
+ /* Code 255 is reserved for special needs of AT keyboard driver */
+ 
+ #define BTN_MISC		0x100
+-- 
+2.20.1
+

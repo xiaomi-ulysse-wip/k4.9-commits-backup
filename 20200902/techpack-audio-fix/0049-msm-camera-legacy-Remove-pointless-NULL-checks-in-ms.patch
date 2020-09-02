@@ -1,0 +1,51 @@
+From 47220a8dff810017d1d41a1c64dd5fa13ad1c1d3 Mon Sep 17 00:00:00 2001
+From: Nathan Chancellor <natechancellor@gmail.com>
+Date: Thu, 26 Sep 2019 22:57:52 -0700
+Subject: [PATCH 049/110] msm: camera-legacy: Remove pointless NULL checks in
+ msm_flash_i2c_release
+
+Clang warns:
+
+../drivers/media/platform/msm/camera_v2-legacy/sensor/flash/msm_flash.c:385:21:
+warning: address of 'flash_ctrl->power_info' will always evaluate to
+'true' [-Wpointer-bool-conversion]
+        if (!(&flash_ctrl->power_info) || !(&flash_ctrl->flash_i2c_client)) {
+            ~  ~~~~~~~~~~~~^~~~~~~~~~
+../drivers/media/platform/msm/camera_v2-legacy/sensor/flash/msm_flash.c:385:51:
+warning: address of 'flash_ctrl->flash_i2c_client' will always evaluate
+to 'true' [-Wpointer-bool-conversion]
+        if (!(&flash_ctrl->power_info) || !(&flash_ctrl->flash_i2c_client)) {
+                                          ~  ~~~~~~~~~~~~^~~~~~~~~~~~~~~~
+
+While we are at it, remove rc's useless assignment to zero.
+
+Fixes: a80ac0113b03 ("msm: camera: Add initial commit for camera drivers on 3.18")
+Signed-off-by: Nathan Chancellor <natechancellor@gmail.com>
+Signed-off-by: Albert I <kras@raphielgang.org>
+---
+ .../msm/camera_v2-legacy/sensor/flash/msm_flash.c        | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/flash/msm_flash.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/flash/msm_flash.c
+index 4c7c6417d26b..71acef76d42b 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/flash/msm_flash.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/flash/msm_flash.c
+@@ -380,14 +380,7 @@ static int32_t msm_flash_gpio_init(
+ static int32_t msm_flash_i2c_release(
+ 	struct msm_flash_ctrl_t *flash_ctrl)
+ {
+-	int32_t rc = 0;
+-
+-	if (!(&flash_ctrl->power_info) || !(&flash_ctrl->flash_i2c_client)) {
+-		pr_err("%s:%d failed: %pK %pK\n",
+-			__func__, __LINE__, &flash_ctrl->power_info,
+-			&flash_ctrl->flash_i2c_client);
+-		return -EINVAL;
+-	}
++	int32_t rc;
+ 
+ 	rc = msm_camera_power_down(&flash_ctrl->power_info,
+ 		flash_ctrl->flash_device_type,
+-- 
+2.20.1
+

@@ -1,0 +1,24 @@
+From db8aa6602a4bf290114de4f5fb1bef1b30434178 Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Tue, 25 Aug 2020 05:21:06 +0800
+Subject: [PATCH 062/110] ARM64: configs: ulysse: Enable legacy camera stack
+
+---
+ arch/arm64/configs/ulysse_defconfig | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm64/configs/ulysse_defconfig b/arch/arm64/configs/ulysse_defconfig
+index c7f3ee0b0902..3ee47d80d41a 100644
+--- a/arch/arm64/configs/ulysse_defconfig
++++ b/arch/arm64/configs/ulysse_defconfig
+@@ -401,6 +401,7 @@ CONFIG_VIDEO_V4L2_SUBDEV_API=y
+ CONFIG_V4L_PLATFORM_DRIVERS=y
+ CONFIG_MSM_CAMERA=y
+ CONFIG_MSMB_CAMERA=y
++CONFIG_MSMB_CAMERA_LEGACY=y
+ CONFIG_MSM_CAMERA_SENSOR=y
+ CONFIG_MSM_CPP=y
+ CONFIG_MSM_CCI=y
+-- 
+2.20.1
+

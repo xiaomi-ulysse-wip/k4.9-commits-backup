@@ -1,0 +1,26 @@
+From 7cbd28e88b07170e590718b1e6a9e4a2d1f2c53a Mon Sep 17 00:00:00 2001
+From: Artem Borisov <dedsa2002@gmail.com>
+Date: Sun, 28 Oct 2018 18:57:32 +0400
+Subject: [PATCH 068/110] drivers: fingerprint: fpc1020_ugg: Use
+ regulator_set_load
+
+---
+ drivers/input/fingerprint/fpc_ugg/fpc1020_tee.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/input/fingerprint/fpc_ugg/fpc1020_tee.c b/drivers/input/fingerprint/fpc_ugg/fpc1020_tee.c
+index 9a68f0cd619a..6a1650b0bc71 100644
+--- a/drivers/input/fingerprint/fpc_ugg/fpc1020_tee.c
++++ b/drivers/input/fingerprint/fpc_ugg/fpc1020_tee.c
+@@ -128,7 +128,7 @@ static int vreg_setup(struct fpc1020_data *fpc1020, const char *name,
+ 					name, rc);
+ 		}
+ 
+-		rc = regulator_set_optimum_mode(vreg, vreg_conf[i].ua_load);
++		rc = regulator_set_load(vreg, vreg_conf[i].ua_load);
+ 		if (rc < 0)
+ 			dev_err(dev, "Unable to set current on %s, %d\n",
+ 					name, rc);
+-- 
+2.20.1
+

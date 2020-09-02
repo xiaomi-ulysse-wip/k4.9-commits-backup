@@ -1,0 +1,1311 @@
+From dc8061c3129d1054221b127275f42892c137a46b Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Wed, 26 Aug 2020 00:37:26 +0800
+Subject: [PATCH 090/110] msm: camera_v2-legacy: Import Xiaomi changes for
+ ulysse
+
+---
+ .../camera_v2-legacy/isp/msm_isp_axi_util.c   |   9 +
+ .../msm/camera_v2-legacy/sensor/cci/msm_cci.c |   4 +
+ .../sensor/eeprom/msm_eeprom.c                | 333 +++++++++++
+ .../camera_v2-legacy/sensor/flash/msm_flash.c |  26 +
+ .../sensor/io/msm_camera_dt_util.c            |  52 ++
+ .../sensor/msm_sensor_driver.c                | 538 ++++++++++++++++++
+ .../msm/camera_v2-legacy/sensor/ois/msm_ois.c |  85 +++
+ 7 files changed, 1047 insertions(+)
+
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp_axi_util.c b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp_axi_util.c
+index ee860840d838..7d5734de5450 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp_axi_util.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp_axi_util.c
+@@ -526,8 +526,17 @@ static void msm_isp_cfg_framedrop_reg(struct vfe_device *vfe_dev,
+ 	if (!runtime_init_frame_drop)
+ 		framedrop_period = stream_info->current_framedrop_period;
+ 
++#ifndef CONFIG_MACH_XIAOMI_ULYSSE
+ 	if (MSM_VFE_STREAM_STOP_PERIOD != framedrop_period)
++#else
++	if (MSM_VFE_STREAM_STOP_PERIOD != framedrop_period) {
++#endif
+ 		framedrop_pattern = 0x1;
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++		if(framedrop_period > 1)
++			framedrop_pattern = framedrop_pattern << (framedrop_period-1);
++	}
++#endif
+ 
+ 	ISP_DBG("%s: stream %x framedrop pattern %x period %u\n", __func__,
+ 		stream_info->stream_handle, framedrop_pattern,
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/cci/msm_cci.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/cci/msm_cci.c
+index 95541fb13342..caab23107b0f 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/cci/msm_cci.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/cci/msm_cci.c
+@@ -32,7 +32,11 @@
+ #define CYCLES_PER_MICRO_SEC_DEFAULT 4915
+ #define CCI_MAX_DELAY 1000000
+ 
++#ifndef CONFIG_MACH_XIAOMI_ULYSSE
+ #define CCI_TIMEOUT msecs_to_jiffies(500)
++#else
++#define CCI_TIMEOUT msecs_to_jiffies(1000)
++#endif
+ 
+ /* TODO move this somewhere else */
+ #define MSM_CCI_DRV_NAME "msm_cci"
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/eeprom/msm_eeprom.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/eeprom/msm_eeprom.c
+index 0320bbc2619a..f3616b9305ef 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/eeprom/msm_eeprom.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/eeprom/msm_eeprom.c
+@@ -1,4 +1,5 @@
+ /* Copyright (c) 2011-2016, The Linux Foundation. All rights reserved.
++ * Copyright (C) 2018 XiaoMi, Inc.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License version 2 and
+@@ -21,11 +22,20 @@
+ #undef CDBG
+ #define CDBG(fmt, args...) pr_debug(fmt, ##args)
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++#define BUFFER_NUM              359
++uint16_t otp_ois[19]={0};
++#endif
++
+ DEFINE_MSM_MUTEX(msm_eeprom_mutex);
+ #ifdef CONFIG_COMPAT
+ static struct v4l2_file_operations msm_eeprom_v4l2_subdev_fops;
+ #endif
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++struct vendor_eeprom s_vendor_eeprom[CAMERA_VENDOR_EEPROM_COUNT_MAX];
++#endif
++
+ /**
+   * msm_get_read_mem_size - Get the total size for allocation
+   * @eeprom_map_array:	mem map
+@@ -657,7 +667,11 @@ static int msm_eeprom_config(struct msm_eeprom_ctrl_t *e_ctrl,
+ 		if (e_ctrl->userspace_probe == 0) {
+ 			pr_err("%s:%d Eeprom already probed at kernel boot",
+ 				__func__, __LINE__);
++#ifndef CONFIG_MACH_XIAOMI_ULYSSE
+ 			rc = -EINVAL;
++#else
++			rc = 0;
++#endif
+ 			break;
+ 		}
+ 		if (e_ctrl->cal_data.num_data == 0) {
+@@ -1516,7 +1530,11 @@ static int msm_eeprom_config32(struct msm_eeprom_ctrl_t *e_ctrl,
+ 		if (e_ctrl->userspace_probe == 0) {
+ 			pr_err("%s:%d Eeprom already probed at kernel boot",
+ 				__func__, __LINE__);
++#ifndef CONFIG_MACH_XIAOMI_ULYSSE
+ 			rc = -EINVAL;
++#else
++			rc = 0;
++#endif
+ 			break;
+ 		}
+ 		if (e_ctrl->cal_data.num_data == 0) {
+@@ -1574,10 +1592,306 @@ static long msm_eeprom_subdev_fops_ioctl32(struct file *file, unsigned int cmd,
+ 
+ #endif
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++static camera_vendor_module_id s5k2p7_ulysse_brcg064_get_otp_vendor_module_id
++	(struct msm_eeprom_ctrl_t *e_ctrl)
++{
++	uint8_t MODULE_INFO_OFFSET = 0x0E;
++	uint8_t LENS_INFO_OFFSET = 0x09;
++	uint8_t MID_FLAG_OFFSET = 0x00;
++	uint8_t mid=0;
++	uint8_t lensid=0;
++	uint8_t flag=0;
++	uint8_t *buffer = e_ctrl->cal_data.mapdata;
++	bool rc = false;
++
++	lensid = buffer[LENS_INFO_OFFSET];
++	mid = buffer[MODULE_INFO_OFFSET];
++	flag = buffer[MID_FLAG_OFFSET];
++	pr_err("%s mid=0x%x, flag=0x%x ,lensid = 0x%x \n", __func__, mid, flag,lensid);
++	rc = (mid==MID_D3 && flag==0x01) ? true : false;
++	if(rc==false) mid = MID_NULL;
++
++
++	pr_err("%s mid=0x%x \n", __func__, mid);
++	return mid;
++
++}
++static camera_vendor_module_id sunny_gt24p64a_s5k3p8_get_otp_vendor_module_id
++	(struct msm_eeprom_ctrl_t *e_ctrl)
++{
++	uint8_t MODULE_INFO_OFFSET = 0x01;
++	uint8_t LENS_INFO_OFFSET = 0x08;
++	uint8_t MID_FLAG_OFFSET = 0x00;
++	uint8_t mid=0;
++	uint8_t flag=0;
++	uint8_t lensid=0;
++	uint8_t *buffer = e_ctrl->cal_data.mapdata;
++	bool rc = false;
++
++	lensid = buffer[LENS_INFO_OFFSET];
++	mid = buffer[MODULE_INFO_OFFSET];
++	flag = buffer[MID_FLAG_OFFSET];
++
++	pr_err("hjl %s mid=0x%x, flag=0x%x ,lensid = 0x%x \n", __func__, mid, flag,lensid);
++	rc = (mid==MID_SUNNY && flag==0x01) ? true : false;
++	if(rc==false) mid = MID_NULL;
++	rc = (lensid==0x0e && flag==0x01) ? true : false;
++	if(rc==false) mid = MID_NULL;
++	pr_err("hdj %s mid=0x%x, flag=0x%x ,lensid = 0x%x \n", __func__, mid, flag,lensid);
++	return mid;
++
++}
++static camera_vendor_module_id s5k3p8_ulysse_ofilm_gt24c64ass_get_otp_vendro_module_id(
++	struct msm_eeprom_ctrl_t *e_ctrl)
++{
++	uint8_t MODULE_INFO_OFFSET = 0x01;
++	uint8_t LENS_INFO_OFFSET = 0x08;
++	uint8_t MID_FLAG_OFFSET = 0x00;
++	uint8_t mid=0;
++	uint8_t flag=0;
++	uint8_t lensid=0;
++	uint8_t *buffer = e_ctrl->cal_data.mapdata;
++	bool rc = false;
++
++	lensid = buffer[LENS_INFO_OFFSET];
++	mid = buffer[MODULE_INFO_OFFSET];
++	flag = buffer[MID_FLAG_OFFSET];
++
++	pr_err("hjl %s mid=0x%x, flag=0x%x ,lensid = 0x%x \n", __func__, mid, flag,lensid);
++	rc = (mid==MID_OFILM && flag==0x01) ? true : false;
++	if(rc==false) mid = MID_NULL;
++	rc = (lensid==0x15 && flag==0x01) ? true : false;
++	if(rc==false) mid = MID_NULL;
++	pr_err("hjl %s mid=0x%x, flag=0x%x ,lensid = 0x%x \n", __func__, mid, flag,lensid);
++	return mid;
++
++}
++
++static camera_vendor_module_id s5k5e8_oef0501_ofilm_get_otp_vendor_module_id(
++	struct msm_eeprom_ctrl_t *e_ctrl)
++{
++	uint32_t MODULE_INFO_OFFSET;
++	uint8_t mid=0;
++	uint8_t tempflag;
++	uint8_t *buffer = e_ctrl->cal_data.mapdata;
++	bool rc = false;
++
++	printk("enter %s\n",__func__);
++	tempflag = buffer[BUFFER_NUM + 103];
++	printk("hjl %s tempflag=%d\n", __func__, tempflag);
++	if(tempflag) {
++		if(buffer[BUFFER_NUM + 1]) {
++			MODULE_INFO_OFFSET = BUFFER_NUM + 3;
++		} else if(buffer[BUFFER_NUM + 35]) {
++			MODULE_INFO_OFFSET = BUFFER_NUM + 37;
++		} else if(buffer[BUFFER_NUM + 69]) {
++			MODULE_INFO_OFFSET = BUFFER_NUM + 71;
++		} else{
++			pr_err("hjl %s %d invalid flag1 ,flag2 and flag3 of module\n",
++			__func__, __LINE__);
++		}
++	} else{
++		if(buffer[BUFFER_NUM + 1]) {
++			MODULE_INFO_OFFSET = BUFFER_NUM + 3;
++		} else if(buffer[BUFFER_NUM + 27]) {
++			MODULE_INFO_OFFSET = BUFFER_NUM + 29;
++		} else if(buffer[BUFFER_NUM + 53]) {
++			MODULE_INFO_OFFSET = BUFFER_NUM +55;
++		} else{
++			pr_err("hjl %s %d invalid flag1 ,flag2 and flag3 of module\n",
++			__func__, __LINE__);
++		}
++	}
++
++	mid = buffer[MODULE_INFO_OFFSET];
++
++	pr_err("hjl %s mid_vendor=0x%x\n", __func__, mid);
++	rc = (mid == MID_OFILM) ? true : false;
++	if(rc==false) mid = MID_NULL;
++	return mid;
++
++}
++static camera_vendor_module_id s5k5e8_f5e8ybf_qtech_get_otp_vendor_module_id(
++	struct msm_eeprom_ctrl_t *e_ctrl)
++{
++	uint32_t MODULE_INFO_OFFSET;
++	uint8_t mid=0;
++
++	uint8_t *buffer = e_ctrl->cal_data.mapdata;
++	bool rc = false;
++
++		 printk("enter %s\n",__func__);
++
++
++
++		if(buffer[BUFFER_NUM + 1]) {
++			MODULE_INFO_OFFSET = BUFFER_NUM + 3;
++		} else if(buffer[BUFFER_NUM + 27]) {
++			MODULE_INFO_OFFSET = BUFFER_NUM + 29;
++
++		} else{
++			pr_err("hjl %s %d invalid flag1 and flag2 of module\n",
++				__func__, __LINE__);
++		}
++
++	mid = buffer[MODULE_INFO_OFFSET];
++
++	pr_err("hjl %s mid_vendor=0x%x\n", __func__, mid);
++	rc = (mid == MID_QTECH) ? true : false;
++	if(rc==false) mid = MID_NULL;
++	return mid;
++
++}
++
++static camera_vendor_module_id s5k3p8sp_d16s01n_sunny_d6s_get_otp_vendro_module_id
++	(struct msm_eeprom_ctrl_t *e_ctrl)
++{
++	uint8_t MODULE_INFO_OFFSET = 0x01;
++	uint8_t LENS_INFO_OFFSET = 0x08;
++	uint8_t MID_FLAG_OFFSET = 0x00;
++	uint8_t mid=0;
++	uint8_t flag=0;
++	uint8_t lensid=0;
++	uint8_t *buffer = e_ctrl->cal_data.mapdata;
++	bool rc = false;
++
++	lensid = buffer[LENS_INFO_OFFSET];
++	mid = buffer[MODULE_INFO_OFFSET];
++	flag = buffer[MID_FLAG_OFFSET];
++
++	pr_err("hjl %s mid=0x%x, flag=0x%x ,lensid = 0x%x \n", __func__, mid, flag,lensid);
++	rc = (mid==MID_SUNNY && flag==0x01) ? true : false;
++	if(rc==false) mid = MID_NULL;
++	rc = (lensid==0x0e && flag==0x01) ? true : false;
++	if(rc==false) mid = MID_NULL;
++	pr_err("hjl %s mid=0x%x, flag=0x%x ,lensid = 0x%x \n", __func__, mid, flag,lensid);
++	return mid;
++
++}
++static camera_vendor_module_id ov16885_ojf0541_ofilm_d6s_get_otp_vendor_module_id
++	(struct msm_eeprom_ctrl_t *e_ctrl )
++{
++	uint8_t MODULE_INFO_OFFSET = 0x01;
++	uint8_t SENSOR_INFO_OFFSET = 0x0C;
++	uint8_t MID_FLAG_OFFSET = 0x00;
++	uint8_t mid=0;
++	uint8_t flag=0;
++	uint8_t sensorid=0;
++	uint8_t *buffer = e_ctrl->cal_data.mapdata;
++	bool rc = false;
++
++	sensorid = buffer[SENSOR_INFO_OFFSET];
++	mid = buffer[MODULE_INFO_OFFSET];
++	flag = buffer[MID_FLAG_OFFSET];
++
++	printk("hjl %s mid=0x%x, flag=0x%x ,sensorid = 0x%x \n", __func__, mid, flag, sensorid);
++	rc = ( mid==MID_OFILM && flag==0x01 ) ? true : false;
++	if(rc==false) mid = MID_NULL;
++	rc = ( sensorid ==0x14 && flag==0x01) ? true : false;
++	if(rc==false) mid = MID_NULL;
++	pr_err("hjl %s mid=0x%x, flag=0x%x ,sensorid = 0x%x \n", __func__, mid, flag,sensorid);
++	return mid;
++}
++
++static camera_vendor_module_id s5k3l8_ohp0502_ofilm_get_otp_vendor_module_id(
++	struct msm_eeprom_ctrl_t *e_ctrl)
++{
++	uint8_t MODULE_INFO_OFFSET = 0x07;
++	uint8_t LENS_INFO_OFFSET = 0x08;
++	uint8_t MID_FLAG_OFFSET = 0x00;
++	uint8_t mid=0;
++	uint8_t flag=0;
++	uint8_t lensid=0;
++	uint8_t *buffer = e_ctrl->cal_data.mapdata;
++	bool rc = false;
++
++	lensid = buffer[LENS_INFO_OFFSET];
++	mid = buffer[MODULE_INFO_OFFSET];
++	flag = buffer[MID_FLAG_OFFSET];
++
++	printk("Lct %s mid=0x%x, flag=0x%x ,lensid = 0x%x \n", __func__, mid, flag,lensid);
++	rc = (mid == MID_OFILM && flag == 0x01) ? true : false;
++	if(rc==false) mid = MID_NULL;
++	rc = (lensid == 0x13 && flag == 0x01) ? true : false;
++	if(rc==false) mid = MID_NULL;
++	pr_err("Lct %s mid=0x%x, flag=0x%x ,lensid = 0x%x \n", __func__, mid, flag,lensid);
++	return mid;
++
++}
++static camera_vendor_module_id ov13855_f13855bd_qtech_get_otp_vendor_module_id(
++	struct msm_eeprom_ctrl_t *e_ctrl)
++{
++	uint8_t MODULE_INFO_OFFSET = 0x07;
++	uint8_t LENS_INFO_OFFSET = 0x08;
++	uint8_t MID_FLAG_OFFSET = 0x00;
++	uint8_t mid=0;
++	uint8_t flag=0;
++	uint8_t lensid=0;
++	uint8_t *buffer = e_ctrl->cal_data.mapdata;
++	bool rc = false;
++
++	lensid = buffer[LENS_INFO_OFFSET];
++	mid = buffer[MODULE_INFO_OFFSET];
++	flag = buffer[MID_FLAG_OFFSET];
++
++	printk("Lct %s mid=0x%x, flag=0x%x, lensid = 0x%x\n", __func__, mid, flag, lensid);
++	rc = (mid == MID_QTECH && flag == 0x01) ? true : false;
++	if(rc==false) mid = MID_NULL;
++	rc = (lensid == 0x10 && flag == 0x01) ? true : false;
++	if(rc==false) mid = MID_NULL;
++	pr_err("Lct %s mid=0x%x, flag=0x%x, lensid = 0x%x \n", __func__, mid, flag, lensid);
++	return mid;
++
++}
++
++static uint8_t get_otp_vendor_module_id(struct msm_eeprom_ctrl_t *e_ctrl, const char *eeprom_name)
++{
++	camera_vendor_module_id module_id=MID_NULL;
++
++	if(strcmp(eeprom_name, "s5k2p7_ulysse_brcg064") == 0) {
++		module_id = s5k2p7_ulysse_brcg064_get_otp_vendor_module_id(e_ctrl);
++	} else if(strcmp(eeprom_name,"sunny_gt24p64a_s5k3p8") == 0) {
++		module_id = sunny_gt24p64a_s5k3p8_get_otp_vendor_module_id(e_ctrl);
++		 } else if(strcmp(eeprom_name,"ofilm_gt24c64ass_s5k3p8") == 0) {
++		module_id = s5k3p8_ulysse_ofilm_gt24c64ass_get_otp_vendro_module_id(e_ctrl);
++	}
++
++	printk("hjl enter D6 front camera\n");
++	if(strcmp(eeprom_name,"s5k5e8_oef0501_ofilm") == 0) {
++		module_id = s5k5e8_oef0501_ofilm_get_otp_vendor_module_id(e_ctrl);
++	} else if(strcmp(eeprom_name,"s5k5e8_f5e8ybf_qtech") == 0) {
++		module_id = s5k5e8_f5e8ybf_qtech_get_otp_vendor_module_id(e_ctrl);
++	}
++
++	printk("hjl enter D6s front camera\n");
++	if(strcmp(eeprom_name,"s5k3p8sp_d16s01n_sunny_d6s") == 0) {
++		module_id = s5k3p8sp_d16s01n_sunny_d6s_get_otp_vendro_module_id(e_ctrl);
++	} else if(strcmp(eeprom_name,"ov16885_ojf0541_ofilm_d6s") == 0) {
++		module_id = ov16885_ojf0541_ofilm_d6s_get_otp_vendor_module_id(e_ctrl);
++	}
++
++	printk("hjl enter D6 and D6's back camera\n");
++	if(strcmp(eeprom_name,"s5k3l8_ohp0502_ofilm") == 0) {
++		module_id = s5k3l8_ohp0502_ofilm_get_otp_vendor_module_id(e_ctrl);
++		 } else if(strcmp(eeprom_name, "ov13855_f13855bd_qtech") == 0) {
++		module_id = ov13855_f13855bd_qtech_get_otp_vendor_module_id(e_ctrl);
++	}
++
++	printk("hjl %s %d eeprom_name=%s, module_id=0x%x\n",__func__,__LINE__,eeprom_name, module_id);
++	if(module_id>=MID_MAX) module_id = MID_NULL;
++
++	return ((uint8_t)module_id);
++}
++#endif
++
+ static int msm_eeprom_platform_probe(struct platform_device *pdev)
+ {
+ 	int rc = 0;
+ 	int j = 0;
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	int i = 0;
++#endif
+ 	uint32_t temp;
+ 
+ 	struct msm_camera_cci_client *cci_client = NULL;
+@@ -1723,6 +2037,14 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
+ 			CDBG("memory_data[%d] = 0x%X\n", j,
+ 				e_ctrl->cal_data.mapdata[j]);
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++		if(eb_info->eeprom_name != NULL) {
++
++			s_vendor_eeprom[pdev->id].module_id = get_otp_vendor_module_id(e_ctrl, eb_info->eeprom_name);
++			strcpy(s_vendor_eeprom[pdev->id].eeprom_name, eb_info->eeprom_name);
++		}
++#endif
++
+ 		e_ctrl->is_supported |= msm_eeprom_match_crc(&e_ctrl->cal_data);
+ 
+ 		rc = msm_camera_power_down(power_info,
+@@ -1734,6 +2056,17 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
+ 	} else
+ 		e_ctrl->is_supported = 1;
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	if(strcmp(eb_info->eeprom_name, "s5k2p7_ulysse_brcg064") == 0) {
++		for (j = 2900,i=0; j < 2938; j=j+2,i++) {
++			if(i<19) {
++				otp_ois[i] = (e_ctrl->cal_data.mapdata[j +1 ] & 0xff) << 8 |( e_ctrl->cal_data.mapdata[j] & 0xff);
++			} else
++			 pr_err("otp ois data fail");
++		}
++	}
++#endif
++
+ 	v4l2_subdev_init(&e_ctrl->msm_sd.sd,
+ 		e_ctrl->eeprom_v4l2_subdev_ops);
+ 	v4l2_set_subdevdata(&e_ctrl->msm_sd.sd, e_ctrl);
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/flash/msm_flash.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/flash/msm_flash.c
+index 71acef76d42b..b5c9b6a6efc1 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/flash/msm_flash.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/flash/msm_flash.c
+@@ -981,6 +981,9 @@ static int32_t msm_flash_get_dt_data(struct device_node *of_node,
+ 	struct msm_flash_ctrl_t *fctrl)
+ {
+ 	int32_t rc = 0;
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	int32_t flash_driver_type = -1;
++#endif
+ 
+ 	CDBG("called\n");
+ 
+@@ -1000,6 +1003,29 @@ static int32_t msm_flash_get_dt_data(struct device_node *of_node,
+ 
+ 	fctrl->flash_driver_type = FLASH_DRIVER_DEFAULT;
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	/* Read the flash_driver_type */
++	rc = of_property_read_u32(of_node, "qcom,flash-type", &flash_driver_type);
++	if (rc < 0) {
++		pr_err("failed rc %d\n", rc);
++	}
++	switch(flash_driver_type) {
++		case 1:
++			fctrl->flash_driver_type = FLASH_DRIVER_PMIC;
++			break;
++		case 2:
++			fctrl->flash_driver_type = FLASH_DRIVER_I2C;
++			break;
++		case 3:
++			fctrl->flash_driver_type = FLASH_DRIVER_GPIO;
++			break;
++		default:
++			fctrl->flash_driver_type = FLASH_DRIVER_DEFAULT;
++			break;
++	}
++	pr_err("flash_driver_type %d", fctrl->flash_driver_type);
++#endif
++
+ 	/* Read the CCI master. Use M0 if not available in the node */
+ 	rc = of_property_read_u32(of_node, "qcom,cci-master",
+ 		&fctrl->cci_i2c_master);
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/io/msm_camera_dt_util.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/io/msm_camera_dt_util.c
+index 8496916da6a1..d138fe7268a9 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/io/msm_camera_dt_util.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/io/msm_camera_dt_util.c
+@@ -1,4 +1,5 @@
+ /* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
++ * Copyright (C) 2018 XiaoMi, Inc.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License version 2 and
+@@ -113,6 +114,29 @@ int msm_camera_fill_vreg_params(struct camera_vreg_t *cam_vreg,
+ 				power_setting[i].seq_val = INVALID_VREG;
+ 			break;
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++		case CAM_DRV:
++			for (j = 0; j < num_vreg; j++) {
++				if (!strcmp(cam_vreg[j].reg_name, "cam_drv")) {
++					CDBG("%s:%d i %d j %d cam_drv\n",
++						__func__, __LINE__, i, j);
++					power_setting[i].seq_val = j;
++					if (VALIDATE_VOLTAGE(
++						cam_vreg[j].min_voltage,
++						cam_vreg[j].max_voltage,
++						power_setting[i].config_val)) {
++						cam_vreg[j].min_voltage =
++						cam_vreg[j].max_voltage =
++						power_setting[i].config_val;
++					}
++					break;
++				}
++			}
++			if (j == num_vreg)
++				power_setting[i].seq_val = INVALID_VREG;
++			break;
++#endif
++
+ 		case CAM_VAF:
+ 			for (j = 0; j < num_vreg; j++) {
+ 				if (!strcmp(cam_vreg[j].reg_name, "cam_vaf")) {
+@@ -967,6 +991,28 @@ int msm_camera_init_gpio_pin_tbl(struct device_node *of_node,
+ 		rc = 0;
+ 	}
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	rc = of_property_read_u32(of_node, "qcom,gpio-drv", &val);
++	if (rc != -EINVAL) {
++		if (rc < 0) {
++			pr_err("%s:%d read qcom,gpio-drv failed rc %d\n",
++				__func__, __LINE__, rc);
++			goto ERROR;
++		} else if (val >= gpio_array_size) {
++			pr_err(" %s:%d qcom,gpio-drv invalid %d\n",
++				__func__, __LINE__, val);
++			goto ERROR;
++		}
++		gconf->gpio_num_info->gpio_num[SENSOR_GPIO_DRV] =
++			gpio_array[val];
++		gconf->gpio_num_info->valid[SENSOR_GPIO_DRV] = 1;
++		pr_err("%s qcom,gpio-drv %d\n", __func__,
++			gconf->gpio_num_info->gpio_num[SENSOR_GPIO_DRV]);
++	} else {
++		rc = 0;
++	}
++#endif
++
+ 	rc = of_property_read_u32(of_node, "qcom,gpio-vaf", &val);
+ 	if (rc != -EINVAL) {
+ 		if (rc < 0) {
+@@ -1407,6 +1453,12 @@ int msm_cam_sensor_handle_reg_gpio(int seq_val,
+ 		gpio_offset = SENSOR_GPIO_VANA;
+ 		break;
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	case CAM_DRV:
++		gpio_offset = SENSOR_GPIO_DRV;
++		break;
++#endif
++
+ 	case CAM_VAF:
+ 		gpio_offset = SENSOR_GPIO_VAF;
+ 		break;
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor_driver.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor_driver.c
+index 106176de795f..4be7b9ba6df9 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor_driver.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor_driver.c
+@@ -1,4 +1,5 @@
+ /* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
++ * Copyright (C) 2018 XiaoMi, Inc.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License version 2 and
+@@ -18,6 +19,11 @@
+ #include "msm_cci.h"
+ #include "msm_camera_dt_util.h"
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++#include <soc/qcom/camera2-legacy.h>
++extern struct vendor_eeprom s_vendor_eeprom[CAMERA_VENDOR_EEPROM_COUNT_MAX];
++#endif
++
+ /* Logging macro */
+ #undef CDBG
+ #define CDBG(fmt, args...) pr_debug(fmt, ##args)
+@@ -676,6 +682,444 @@ static void msm_sensor_fill_sensor_info(struct msm_sensor_ctrl_t *s_ctrl,
+ 	strlcpy(entity_name, s_ctrl->msm_sd.sd.entity.name, MAX_SENSOR_NAME);
+ }
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++/* add sensor info for factory mode
++   begin
++*/
++static struct kobject *msm_sensor_device=NULL;
++static char module_info[80] = {0};
++
++void msm_sensor_set_module_info(struct msm_sensor_ctrl_t *s_ctrl)
++{
++	printk(" s_ctrl->sensordata->camera_type = %d\n", s_ctrl->sensordata->sensor_info->position);
++
++	switch (s_ctrl->sensordata->sensor_info->position) {
++		case BACK_CAMERA_B:
++			strcat(module_info, "back: ");
++			break;
++		case FRONT_CAMERA_B:
++			strcat(module_info, "front: ");
++			break;
++		default:
++			strcat(module_info, "unknown: ");
++			break;
++	}
++	strcat(module_info, s_ctrl->sensordata->sensor_name);
++	strcat(module_info, "\n");
++}
++
++static ssize_t msm_sensor_module_id_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	ssize_t rc = 0;
++
++	sprintf(buf, "%s\n", module_info);
++	rc = strlen(buf) + 1;
++
++	return rc;
++}
++
++static DEVICE_ATTR(sensor, 0444, msm_sensor_module_id_show, NULL);
++
++int32_t msm_sensor_init_device_name(void)
++{
++	int32_t rc = 0;
++	pr_err("%s %d\n", __func__,__LINE__);
++	if(msm_sensor_device != NULL) {
++		pr_err("Macle android_camera already created\n");
++		return 0;
++	}
++	msm_sensor_device = kobject_create_and_add("android_camera", NULL);
++	if (msm_sensor_device == NULL) {
++		printk("%s: subsystem_register failed\n", __func__);
++		rc = -ENOMEM;
++		return rc ;
++	}
++	rc = sysfs_create_file(msm_sensor_device, &dev_attr_sensor.attr);
++	if (rc) {
++		printk("%s: sysfs_create_file failed\n", __func__);
++		kobject_del(msm_sensor_device);
++	}
++
++	return 0 ;
++}
++/* add sensor info for factory mode
++   end
++*/
++
++
++static uint16_t msm_sensor_get_sensor_id_samsung(struct msm_sensor_ctrl_t *s_ctrl,char *sensor_fusion_id)
++{
++	int rc = 0;
++	int i = 0;
++	uint16_t sensorid[6] ={0};
++	uint32_t start_add =0x0A24;
++	struct msm_camera_i2c_client *sensor_i2c_client;
++
++	CDBG("%s:%d E \n", __func__, __LINE__);
++	sensor_i2c_client = s_ctrl->sensor_i2c_client;
++
++	rc = sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x0100,
++		0x0100, MSM_CAMERA_I2C_WORD_DATA);
++	mdelay(1);
++	if (rc < 0) {
++		pr_err("%s:litao write 0x0100 failed\n", __func__);
++		return rc;
++	}
++
++	sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x0A02,
++		0x0000, MSM_CAMERA_I2C_WORD_DATA);
++
++	sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x0A00,
++		0x0100, MSM_CAMERA_I2C_WORD_DATA);
++	mdelay(15);
++
++	for (i=0; i<6; i++) {
++	rc = sensor_i2c_client->i2c_func_tbl->i2c_read(
++		sensor_i2c_client,start_add,
++		&sensorid[i], MSM_CAMERA_I2C_WORD_DATA);
++
++	start_add += 1;
++	}
++
++	sprintf(sensor_fusion_id, "%d%d%d%d%d%d",
++		sensorid[0],
++		sensorid[1],
++		sensorid[2],
++		sensorid[3],
++		sensorid[4],
++		sensorid[5]);
++	return rc;
++}
++
++static uint16_t msm_sensor_get_sensor_id_samsung_5e8(struct msm_sensor_ctrl_t *s_ctrl,char *sensor_fusion_id)
++{
++	int rc = 0;
++	int i = 0;
++	uint16_t sensorid[16] ={0};
++	uint32_t start_add =0x0a04;
++	struct msm_camera_i2c_client *sensor_i2c_client;
++
++	CDBG("%s:%d E \n", __func__, __LINE__);
++	sensor_i2c_client = s_ctrl->sensor_i2c_client;
++
++	rc = sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x0100,
++		0x00, MSM_CAMERA_I2C_BYTE_DATA);
++	mdelay(1);
++	if (rc < 0) {
++		pr_err("%s:litao write 0x0100 failed\n", __func__);
++		return rc;
++	}
++
++	 sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x0a00,
++		0x04, MSM_CAMERA_I2C_BYTE_DATA);
++
++	 sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x0a02,
++		0x00, MSM_CAMERA_I2C_BYTE_DATA);
++
++	 sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x0a00,
++		0x01, MSM_CAMERA_I2C_BYTE_DATA);
++
++	mdelay(1);
++
++	for (i=0; i<16; i++) {
++	 sensor_i2c_client->i2c_func_tbl->i2c_read(
++		sensor_i2c_client,start_add,
++		&sensorid[i], MSM_CAMERA_I2C_WORD_DATA);
++
++	start_add += 1;
++	}
++
++	sprintf(sensor_fusion_id, "%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d",
++		sensorid[0],
++		sensorid[1],
++		sensorid[2],
++		sensorid[3],
++		sensorid[4],
++		sensorid[5],
++		sensorid[6],
++		sensorid[7],
++		sensorid[8],
++		sensorid[9],
++		sensorid[10],
++		sensorid[12],
++		sensorid[13],
++		sensorid[14],
++		sensorid[15]);
++	return rc;
++}
++
++static uint16_t msm_sensor_get_sensor_id_ovti_13855(struct msm_sensor_ctrl_t *s_ctrl,char *sensor_fusion_id)
++{
++	int rc = 0;
++	int i = 0;
++	uint16_t sensorid[16] ={0};
++	uint16_t temp = 0;
++	uint32_t start_add =0x7000;
++	struct msm_camera_i2c_client *sensor_i2c_client;
++
++	CDBG("%s:%d E \n", __func__, __LINE__);
++
++	sensor_i2c_client = s_ctrl->sensor_i2c_client;
++
++	rc = sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x0100,
++		0x01, MSM_CAMERA_I2C_BYTE_DATA);
++	if (rc < 0) {
++		pr_err("%s:litao write 0x0100 failed\n", __func__);
++		return rc;
++	}
++
++	 sensor_i2c_client->i2c_func_tbl->i2c_read(
++		sensor_i2c_client,0x5000,
++		&temp, MSM_CAMERA_I2C_WORD_DATA);
++
++	temp &= ~(1<<3);
++
++	 sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x5000,
++		temp, MSM_CAMERA_I2C_BYTE_DATA);
++	 sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x3d84,
++		0x40, MSM_CAMERA_I2C_BYTE_DATA);
++
++	 sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x3d88,
++		0x70, MSM_CAMERA_I2C_BYTE_DATA);
++
++	 sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x3d89,
++		0x00, MSM_CAMERA_I2C_BYTE_DATA);
++
++	 sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x3d8a,
++		0x70, MSM_CAMERA_I2C_BYTE_DATA);
++
++	 sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x3d8b,
++		0x0f, MSM_CAMERA_I2C_BYTE_DATA);
++
++	 sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x3d81,
++		0x01, MSM_CAMERA_I2C_BYTE_DATA);
++
++	mdelay(1);
++	for (i=0; i<16; i++) {
++	 sensor_i2c_client->i2c_func_tbl->i2c_read(
++		sensor_i2c_client,start_add,
++		&sensorid[i], MSM_CAMERA_I2C_WORD_DATA);
++
++	start_add += 1;
++	}
++
++	 sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x0100,
++		0x00, MSM_CAMERA_I2C_BYTE_DATA);
++	sprintf(sensor_fusion_id, "%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d",
++		sensorid[0],
++		sensorid[1],
++		sensorid[2],
++		sensorid[3],
++		sensorid[4],
++		sensorid[5],
++		sensorid[6],
++		sensorid[7],
++		sensorid[8],
++		sensorid[9],
++		sensorid[10],
++		sensorid[11],
++		sensorid[12],
++		sensorid[13],
++		sensorid[14],
++		sensorid[15]);
++	return rc;
++}
++
++static uint16_t msm_sensor_get_sensor_id_ovti_16885(struct msm_sensor_ctrl_t *s_ctrl,char *sensor_fusion_id)
++{
++	int rc = 0;
++	int i = 0;
++	uint16_t sensorid[16] ={0};
++	uint16_t temp = 0;
++	uint32_t start_add =0x6000;
++	struct msm_camera_i2c_client *sensor_i2c_client;
++
++	CDBG("%s:%d E \n", __func__, __LINE__);
++
++	sensor_i2c_client = s_ctrl->sensor_i2c_client;
++
++	rc = sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x0100,
++		0x01, MSM_CAMERA_I2C_BYTE_DATA);
++
++	if (rc < 0) {
++		pr_err("%s:litao write 0x0100 failed\n", __func__);
++		return rc;
++	}
++	mdelay(1);
++
++	sensor_i2c_client->i2c_func_tbl->i2c_read(
++		sensor_i2c_client,0x5000,
++		&temp, MSM_CAMERA_I2C_WORD_DATA);
++
++	temp &= ~(1<<3);
++
++	 sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x5000,
++		temp, MSM_CAMERA_I2C_BYTE_DATA);
++
++	 sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x3d84,
++		0x40, MSM_CAMERA_I2C_BYTE_DATA);
++
++	 sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x3d88,
++		0x70, MSM_CAMERA_I2C_BYTE_DATA);
++
++	 sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x3d89,
++		0x00, MSM_CAMERA_I2C_BYTE_DATA);
++
++	 sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x3d8a,
++		0x70, MSM_CAMERA_I2C_BYTE_DATA);
++
++	 sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x3d8b,
++		0x0f, MSM_CAMERA_I2C_BYTE_DATA);
++
++	 sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x3d81,
++		0x01, MSM_CAMERA_I2C_BYTE_DATA);
++
++	mdelay(1);
++	for (i=0; i<16; i++) {
++	sensor_i2c_client->i2c_func_tbl->i2c_read(
++		sensor_i2c_client,start_add,
++		&sensorid[i], MSM_CAMERA_I2C_WORD_DATA);
++
++	start_add += 1;
++	}
++
++	sensor_i2c_client->i2c_func_tbl->i2c_write(
++		sensor_i2c_client, 0x0100,
++		0x00, MSM_CAMERA_I2C_BYTE_DATA);
++	sprintf(sensor_fusion_id, "%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d",
++		sensorid[0],
++		sensorid[1],
++		sensorid[2],
++		sensorid[3],
++		sensorid[4],
++		sensorid[5],
++		sensorid[6],
++		sensorid[7],
++		sensorid[8],
++		sensorid[9],
++		sensorid[10],
++		sensorid[11],
++		sensorid[12],
++		sensorid[13],
++		sensorid[14],
++		sensorid[15]);
++	return rc;
++}
++static struct kobject *msm_sensorid_device=NULL;
++static char sensor_fusion_id[200] = {0};
++
++void msm_sensor_set_sesnor_id(struct msm_sensor_ctrl_t *s_ctrl)
++{
++	char  sensor_fusion_id_tmp[90] = {0};
++	int rc = 0;
++	printk(" s_ctrl->sensordata->camera_type = %d\n", s_ctrl->sensordata->sensor_info->position);
++
++	switch (s_ctrl->sensordata->sensor_info->position) {
++		case BACK_CAMERA_B:
++			strcat(sensor_fusion_id, "back:");
++			break;
++		case FRONT_CAMERA_B:
++			strcat(sensor_fusion_id, "front:");
++			break;
++		default:
++			strcat(sensor_fusion_id, "unknown:");
++			break;
++	}
++
++		  if((!strcmp("s5k3p8sp_d16s01n_d6s", s_ctrl->sensordata->sensor_name))||(!strcmp("s5k3l8_ohp0502_d6", s_ctrl->sensordata->sensor_name))) {
++		rc = msm_sensor_get_sensor_id_samsung(s_ctrl,sensor_fusion_id_tmp);
++		if (rc < 0) {
++		pr_err("%s:%d litao read sensor %s fusion id failed\n", __func__, __LINE__, s_ctrl->sensordata->sensor_name);
++			}
++		}
++	if((!strcmp("s5k5e8_oef0501_d6", s_ctrl->sensordata->sensor_name))||(!strcmp("s5k5e8_f5e8ybf_d6", s_ctrl->sensordata->sensor_name))) {
++		rc = msm_sensor_get_sensor_id_samsung_5e8(s_ctrl,sensor_fusion_id_tmp);
++		if (rc < 0) {
++		pr_err("%s:%d litao read sensor %s fusion id failed\n", __func__, __LINE__, s_ctrl->sensordata->sensor_name);
++			}
++		}
++	 if(!strcmp("ov13855_f13855bd_d6", s_ctrl->sensordata->sensor_name)) {
++		rc = msm_sensor_get_sensor_id_ovti_13855(s_ctrl,sensor_fusion_id_tmp);
++		if (rc < 0) {
++		pr_err("%s:%d litao read sensor %s fusion id failed\n", __func__, __LINE__, s_ctrl->sensordata->sensor_name);
++			}
++		}
++	if(!strcmp("ov16885_ojf0541_d6", s_ctrl->sensordata->sensor_name)) {
++		rc = msm_sensor_get_sensor_id_ovti_16885(s_ctrl,sensor_fusion_id_tmp);
++		if (rc < 0) {
++		pr_err("%s:%d litao read sensor %s fusion id failed\n", __func__, __LINE__, s_ctrl->sensordata->sensor_name);
++			}
++		}
++		pr_err("%s:%d litao read sensor fusion id %s\n", __func__, __LINE__, sensor_fusion_id_tmp);
++	strcat(sensor_fusion_id, sensor_fusion_id_tmp);
++	strcat(sensor_fusion_id, "\n");
++}
++
++static ssize_t msm_sensor_id_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	ssize_t rc = 0;
++
++	sprintf(buf, "%s", sensor_fusion_id);
++	rc = strlen(buf) + 1;
++
++	return rc;
++}
++
++static DEVICE_ATTR(sensorid, 0444, msm_sensor_id_show, NULL);
++
++int32_t msm_sensorid_init_device_name(void)
++{
++	int32_t rc = 0;
++	pr_err("%s %d\n", __func__,__LINE__);
++	if(msm_sensorid_device != NULL) {
++		pr_err("Macle android_camera already created\n");
++		return 0;
++	}
++	msm_sensorid_device = kobject_create_and_add("camera_sensorid", NULL);
++	if (msm_sensorid_device == NULL) {
++		printk("%s: subsystem_register failed\n", __func__);
++		rc = -ENOMEM;
++		return rc ;
++	}
++	rc = sysfs_create_file(msm_sensorid_device, &dev_attr_sensorid.attr);
++	if (rc) {
++		printk("%s: sysfs_create_file failed\n", __func__);
++		kobject_del(msm_sensorid_device);
++	}
++
++	return 0 ;
++}
++/* add sensor info for factory mode
++   end
++*/
++#endif
++
+ /* static function definition */
+ int32_t msm_sensor_driver_probe(void *setting,
+ 	struct msm_sensor_info_t *probed_info, char *entity_name)
+@@ -689,6 +1133,10 @@ int32_t msm_sensor_driver_probe(void *setting,
+ 	unsigned long                        mount_pos = 0;
+ 	uint32_t                             is_yuv;
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	uint32_t	i = 0;
++#endif
++
+ 	/* Validate input parameters */
+ 	if (!setting) {
+ 		pr_err("failed: slave_info %pK", setting);
+@@ -789,6 +1237,86 @@ int32_t msm_sensor_driver_probe(void *setting,
+ 		goto free_slave_info;
+ 	}
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	printk("lct enter CONFIG_KERNEL_CUSTOM_CM895!\n");
++	if(s_vendor_eeprom[i].eeprom_name != NULL) {
++		for(i=0; i<CAMERA_VENDOR_EEPROM_COUNT_MAX; i++) {
++			if(strcmp(slave_info->eeprom_name,s_vendor_eeprom[i].eeprom_name) == 0) {
++
++				printk("lct slave_info->sensor_name =%s, module_id=%d\n", slave_info->sensor_name, s_vendor_eeprom[i].module_id);
++				if(((strcmp(slave_info->sensor_name,"s5k3p8_ulysse_sunny") == 0) && (s_vendor_eeprom[i].module_id == MID_SUNNY))
++					|| ((strcmp(slave_info->sensor_name,"s5k3p8_ulysse_ofilm") == 0) && (s_vendor_eeprom[i].module_id == MID_OFILM))
++					|| ((strcmp(slave_info->sensor_name,"s5k2p7_ulysse_semco") == 0) && (s_vendor_eeprom[i].module_id == MID_D3))) {
++						printk("lct module found!probe continue!\n");
++						break;
++				}
++			}
++		}
++/*
++		if(i >= CAMERA_VENDOR_EEPROM_COUNT_MAX) {
++			pr_err("lct module not found!probe break failed!\n");
++			rc = -EFAULT;
++			goto free_slave_info;
++		}
++*/
++	}
++
++	printk("hjl reading to enter L6200\n");
++	printk("lct entered CONFIG_KERNEL_CUSTOM_L6200!\n");
++	printk("slave_info->eeprom_name=%s, s_vendor_eeprom=%s\n",
++			slave_info->eeprom_name, s_vendor_eeprom[i].eeprom_name);
++	if(s_vendor_eeprom[i].eeprom_name != NULL) {
++		for(i=0; i<CAMERA_VENDOR_EEPROM_COUNT_MAX; i++) {
++			if(strcmp(slave_info->eeprom_name, s_vendor_eeprom[i].eeprom_name) == 0) {
++
++			printk("lct slave_info->sensor_name =%s, module_id=%d\n", slave_info->sensor_name, s_vendor_eeprom[i].module_id);
++				if(((strcmp(slave_info->sensor_name,"s5k5e8_oef0501_d6") == 0) && (s_vendor_eeprom[i].module_id == MID_OFILM))
++					|| ((strcmp(slave_info->sensor_name,"s5k5e8_f5e8ybf_d6") == 0) && (s_vendor_eeprom[i].module_id == MID_QTECH))
++					|| ((strcmp(slave_info->sensor_name,"s5k3l8_ohp0502_d6") == 0) && (s_vendor_eeprom[i].module_id == MID_OFILM))
++					|| ((strcmp(slave_info->sensor_name,"ov13855_f13855bd_d6") == 0) && (s_vendor_eeprom[i].module_id == MID_QTECH))) {
++						printk("lct module found!probe continue!\n");
++						break;
++				}
++			}
++		}
++/*
++		if(i >= CAMERA_VENDOR_EEPROM_COUNT_MAX) {
++		pr_err("lct module not found!probe break failed!\n");
++		rc = -EFAULT;
++		goto free_slave_info;
++		}
++*/
++	}
++
++	printk("lct enter CONFIG_KERNEL_CUSTOM_L6210!\n");
++	if(s_vendor_eeprom[i].eeprom_name != NULL) {
++		for(i=0; i<CAMERA_VENDOR_EEPROM_COUNT_MAX; i++) {
++			printk("slave_info->eeprom_name=%s, s_vendor_eeprom=%s\n",
++			slave_info->eeprom_name, s_vendor_eeprom[i].eeprom_name);
++			printk("slave_info->sensor_name=%s\n", slave_info->sensor_name);
++			if(strcmp(slave_info->eeprom_name, s_vendor_eeprom[i].eeprom_name) == 0) {
++
++				printk("lct slave_info->sensor_name =%s, module_id=%d\n", slave_info->sensor_name, s_vendor_eeprom[i].module_id);
++				if(((strcmp(slave_info->sensor_name,"s5k3p8sp_d16s01n_d6s") == 0) && (s_vendor_eeprom[i].module_id == MID_SUNNY))
++					|| ((strcmp(slave_info->sensor_name,"ov16885_ojf0541_d6") == 0) && (s_vendor_eeprom[i].module_id == MID_OFILM))
++					|| ((strcmp(slave_info->sensor_name,"s5k3l8_ohp0502_d6") == 0) && (s_vendor_eeprom[i].module_id == MID_OFILM))
++					|| ((strcmp(slave_info->sensor_name,"ov13855_f13855bd_d6") == 0) && (s_vendor_eeprom[i].module_id == MID_QTECH))) {
++						printk("lct module found!probe continue!\n");
++						break;
++				}
++			}
++		}
++/*
++		if(i >= CAMERA_VENDOR_EEPROM_COUNT_MAX) {
++			pr_err("lct module not found!probe break failed!\n");
++			rc = -EFAULT;
++			goto free_slave_info;
++		}
++*/
++	}
++
++#endif
++
+ 	/* Print slave info */
+ 	CDBG("camera id %d Slave addr 0x%X addr_type %d\n",
+ 		slave_info->camera_id, slave_info->slave_addr,
+@@ -975,6 +1503,11 @@ int32_t msm_sensor_driver_probe(void *setting,
+ 	s_ctrl->bypass_video_node_creation =
+ 		slave_info->bypass_video_node_creation;
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	msm_sensorid_init_device_name();
++	msm_sensor_set_sesnor_id(s_ctrl);
++#endif
++
+ 	/*
+ 	 * Update the subdevice id of flash-src based on availability in kernel.
+ 	 */
+@@ -1027,6 +1560,11 @@ int32_t msm_sensor_driver_probe(void *setting,
+ 
+ 	msm_sensor_fill_sensor_info(s_ctrl, probed_info, entity_name);
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	msm_sensor_init_device_name();
++	msm_sensor_set_module_info(s_ctrl);
++#endif
++
+ 	/*
+ 	 * Set probe succeeded flag to 1 so that no other camera shall
+ 	 * probed on this slot
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/ois/msm_ois.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/ois/msm_ois.c
+index 0452e78be5a8..2b36eefa42bf 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/ois/msm_ois.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/ois/msm_ois.c
+@@ -1,4 +1,5 @@
+ /* Copyright (c) 2014-2017, The Linux Foundation. All rights reserved.
++ * Copyright (C) 2018 XiaoMi, Inc.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License version 2 and
+@@ -18,6 +19,10 @@
+ #include "msm_ois.h"
+ #include "msm_cci.h"
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++extern uint16_t otp_ois[19];
++#endif
++
+ DEFINE_MSM_MUTEX(msm_ois_mutex);
+ /*#define MSM_OIS_DEBUG*/
+ #undef CDBG
+@@ -27,12 +32,68 @@ DEFINE_MSM_MUTEX(msm_ois_mutex);
+ #define CDBG(fmt, args...) pr_debug(fmt, ##args)
+ #endif
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++typedef	uint16_t OIS_UWORD;
++struct OIS_otp{
++	OIS_UWORD	gl_CURDAT;
++	OIS_UWORD	gl_HALOFS_X;
++	OIS_UWORD	gl_HALOFS_Y;
++	OIS_UWORD	gl_HX_OFS;
++	OIS_UWORD	gl_HY_OFS;
++	OIS_UWORD	gl_PSTXOF;
++	OIS_UWORD	gl_PSTYOF;
++	OIS_UWORD	gl_GX_OFS;
++	OIS_UWORD	gl_GY_OFS;
++	OIS_UWORD	gl_KgxHG;
++	OIS_UWORD	gl_KgyHG;
++	OIS_UWORD	gl_KGXG;
++	OIS_UWORD	gl_KGYG;
++	OIS_UWORD	gl_SFTHAL_X;
++	OIS_UWORD	gl_SFTHAL_Y;
++	OIS_UWORD	gl_TMP_X_;
++	OIS_UWORD	gl_TMP_Y_;
++	OIS_UWORD	gl_KgxH0;
++	OIS_UWORD	gl_KgyH0;
++};
++#endif
++
+ static struct v4l2_file_operations msm_ois_v4l2_subdev_fops;
+ static int32_t msm_ois_power_up(struct msm_ois_ctrl_t *o_ctrl);
+ static int32_t msm_ois_power_down(struct msm_ois_ctrl_t *o_ctrl);
+ 
+ static struct i2c_driver msm_ois_i2c_driver;
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++static struct OIS_otp * msm_ois_otp;
++#endif
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++int32_t i = 0;
++unsigned char data_rd[2]={0};
++unsigned short int  read_data = 0;
++uint16_t ois_addr[] ={
++			0x8230,
++			0x8231,
++			0x8232,
++			0x841e,
++			0x849e,
++			0x8239,
++			0x823b,
++			0x8406,
++			0x8486,
++			0x8446,
++			0x84c6,
++			0x840f,
++			0x848f,
++			0x846a,
++			0x846b,
++			0x846a,
++			0x846b,
++			0x8470,
++			0x8472
++		};
++#endif
++
++#ifndef CONFIG_MACH_XIAOMI_ULYSSE
+ static int32_t msm_ois_download(struct msm_ois_ctrl_t *o_ctrl)
+ {
+ 	uint16_t bytes_in_tx = 0;
+@@ -111,6 +172,12 @@ static int32_t msm_ois_download(struct msm_ois_ctrl_t *o_ctrl)
+ 
+ 	return rc;
+ }
++#else
++static int32_t msm_ois_download(struct msm_ois_ctrl_t *o_ctrl)
++{
++	return 0;
++}
++#endif
+ 
+ static int32_t msm_ois_data_config(struct msm_ois_ctrl_t *o_ctrl,
+ 	struct msm_ois_slave_info *slave_info)
+@@ -390,6 +457,17 @@ static int32_t msm_ois_control(struct msm_ois_ctrl_t *o_ctrl,
+ 		rc = msm_ois_write_settings(o_ctrl,
+ 			set_info->ois_params.setting_size,
+ 			settings);
++
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++		msm_ois_otp =(struct OIS_otp *)otp_ois;
++
++
++		for(i = 0 ; i < 19 ; i++) {
++		o_ctrl->i2c_client.i2c_func_tbl->i2c_write_seq(
++				&o_ctrl->i2c_client,ois_addr[i],(uint8_t*)&otp_ois[i], 2);
++			}
++#endif
++
+ 		kfree(settings);
+ 		if (rc < 0) {
+ 			pr_err("Error\n");
+@@ -452,8 +530,12 @@ static int32_t msm_ois_config(struct msm_ois_ctrl_t *o_ctrl,
+ 			break;
+ 		}
+ 
++#ifndef CONFIG_MACH_XIAOMI_ULYSSE
+ 		if (!conf_array.size ||
+ 			conf_array.size > I2C_SEQ_REG_DATA_MAX) {
++#else
++		if (!conf_array.size) {
++#endif
+ 			pr_err("%s:%d failed\n", __func__, __LINE__);
+ 			rc = -EFAULT;
+ 			break;
+@@ -903,6 +985,9 @@ static int32_t msm_ois_platform_probe(struct platform_device *pdev)
+ 		if (rc < 0) {
+ 			pr_err("ERR: Error in reading OIS pinctrl\n");
+ 			msm_ois_t->cam_pinctrl_status = 0;
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++			rc = 0;
++#endif
+ 		}
+ 	}
+ 
+-- 
+2.20.1
+

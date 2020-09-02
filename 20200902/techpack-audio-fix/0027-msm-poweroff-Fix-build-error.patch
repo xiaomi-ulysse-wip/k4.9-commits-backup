@@ -1,0 +1,25 @@
+From 225183ed7c456dbfa26d6e3ddecfb768faff7028 Mon Sep 17 00:00:00 2001
+From: "R. Adi Permana" <romadhonadipermana279f@gmail.com>
+Date: Wed, 19 Aug 2020 18:25:19 +0700
+Subject: [PATCH 027/110] msm-poweroff: Fix build error
+
+---
+ drivers/power/reset/msm-poweroff.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/power/reset/msm-poweroff.c b/drivers/power/reset/msm-poweroff.c
+index 3698536bdaa4..38ab7017afec 100644
+--- a/drivers/power/reset/msm-poweroff.c
++++ b/drivers/power/reset/msm-poweroff.c
+@@ -59,6 +59,8 @@ static phys_addr_t tcsr_boot_misc_detect;
+ static void scm_disable_sdi(void);
+ static bool force_warm_reboot;
+ 
++int in_panic = 0;
++
+ #ifdef CONFIG_QCOM_DLOAD_MODE
+ /* Runtime could be only changed value once.
+  * There is no API from TZ to re-enable the registers.
+-- 
+2.20.1
+

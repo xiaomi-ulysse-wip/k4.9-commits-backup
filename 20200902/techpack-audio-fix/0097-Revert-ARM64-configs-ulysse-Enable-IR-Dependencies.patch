@@ -1,0 +1,53 @@
+From fbbaff928557fa3c0911fef2fc304a7dceee630f Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Wed, 26 Aug 2020 22:11:00 +0800
+Subject: [PATCH 097/110] Revert "ARM64: configs: ulysse: Enable IR
+ Dependencies"
+
+kpanic
+
+This reverts commit ffec23a8f93b184fc543ba672384b9feeb063af7.
+---
+ arch/arm64/configs/ulysse_defconfig | 19 +------------------
+ 1 file changed, 1 insertion(+), 18 deletions(-)
+
+diff --git a/arch/arm64/configs/ulysse_defconfig b/arch/arm64/configs/ulysse_defconfig
+index b4b8171ccb6b..9210ab880e49 100644
+--- a/arch/arm64/configs/ulysse_defconfig
++++ b/arch/arm64/configs/ulysse_defconfig
+@@ -692,6 +692,7 @@ CONFIG_TOUCHSCREEN_FT5435_ULYSSE_DIRECTORY="focaltech_touch"
+ CONFIG_TOUCHSCREEN_GT9XX_v28=y
+ CONFIG_BQ2560X_CHARGER=y
+ CONFIG_BQ27426_FG=y
++CONFIG_RC_CORE=y
+ CONFIG_IR_PWM=y
+ CONFIG_VIB_GPIO=y
+ CONFIG_ANT_CHECK=y
+@@ -699,24 +700,6 @@ CONFIG_LEDS_MSM_GPIO_FLASH=y
+ CONFIG_LEDS_MSM_BACK_GPIO_FLASH=y
+ CONFIG_LEDS_AW2013=y
+ 
+-# ulysse - IR
+-CONFIG_MEDIA_RC_SUPPORT=y
+-CONFIG_RC_CORE=y
+-CONFIG_RC_DECODERS=y
+-CONFIG_LIRC=y
+-CONFIG_IR_LIRC_CODEC=y
+-CONFIG_IR_NEC_DECODER=y
+-CONFIG_IR_RC5_DECODER=y
+-CONFIG_IR_RC6_DECODER=y
+-CONFIG_IR_JVC_DECODER=y
+-CONFIG_IR_SONY_DECODER=y
+-CONFIG_IR_SANYO_DECODER=y
+-CONFIG_IR_SHARP_DECODER=y
+-CONFIG_IR_MCE_KBD_DECODER=y
+-CONFIG_IR_XMP_DECODER=y
+-CONFIG_RC_DEVICES=y
+-CONFIG_RC_MAP=y
+-
+ # ugg
+ CONFIG_FINGERPRINT_FPC1020_UGG=y
+ CONFIG_FINGERPRINT_GF3208_UGG=y
+-- 
+2.20.1
+

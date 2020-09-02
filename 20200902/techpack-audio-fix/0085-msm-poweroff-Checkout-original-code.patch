@@ -1,0 +1,60 @@
+From 0a8add9073a6b802f6d688149f612a227f7e059f Mon Sep 17 00:00:00 2001
+From: anonymous <anonymous>
+Date: Tue, 25 Aug 2020 10:58:44 +0000
+Subject: [PATCH 085/110] msm-poweroff: Checkout original code
+
+---
+ drivers/power/reset/msm-poweroff.c | 13 ++++---------
+ 1 file changed, 4 insertions(+), 9 deletions(-)
+
+diff --git a/drivers/power/reset/msm-poweroff.c b/drivers/power/reset/msm-poweroff.c
+index 9624ca272fd0..1cef2955bca1 100644
+--- a/drivers/power/reset/msm-poweroff.c
++++ b/drivers/power/reset/msm-poweroff.c
+@@ -59,18 +59,18 @@ static phys_addr_t tcsr_boot_misc_detect;
+ static void scm_disable_sdi(void);
+ static bool force_warm_reboot;
+ 
+-int in_panic = 0;
+-
+ #ifdef CONFIG_QCOM_DLOAD_MODE
+ /* Runtime could be only changed value once.
+  * There is no API from TZ to re-enable the registers.
+  * So the SDI cannot be re-enabled when it already by-passed.
+  */
+-int download_mode = 0;
++static int download_mode = 1;
+ #else
+ static const int download_mode;
+ #endif
+ 
++static int in_panic;
++
+ static int panic_prep_restart(struct notifier_block *this,
+ 			      unsigned long event, void *ptr)
+ {
+@@ -317,9 +317,7 @@ static void msm_restart_prepare(const char *cmd)
+ 	else
+ 		qpnp_pon_system_pwr_off(PON_POWER_OFF_HARD_RESET);
+ 
+-	if (in_panic) {
+-		qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
+-	} else if (cmd != NULL) {
++	if (cmd != NULL) {
+ 		if (!strncmp(cmd, "bootloader", 10)) {
+ 			qpnp_pon_set_restart_reason(
+ 				PON_RESTART_REASON_BOOTLOADER);
+@@ -370,10 +368,7 @@ static void msm_restart_prepare(const char *cmd)
+ 					     restart_reason);
+ 			}
+ 		} else if (!strncmp(cmd, "edl", 3)) {
+-			if(0)
+ 			enable_emergency_dload_mode();
+-			else
+-			pr_info("This command already been disabled");
+ 		} else {
+ 			__raw_writel(0x77665501, restart_reason);
+ 		}
+-- 
+2.20.1
+

@@ -1,0 +1,26 @@
+From 841ea161fd994de8f044db59b6022a024c8b939f Mon Sep 17 00:00:00 2001
+From: "R. Adi Permana" <romadhonadipermana279f@gmail.com>
+Date: Wed, 19 Aug 2020 18:14:37 +0700
+Subject: [PATCH 025/110] ft5435: Fix build
+
+---
+ .../touchscreen/ft5435_ulysse/focaltech_flash/Makefile      | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/input/touchscreen/ft5435_ulysse/focaltech_flash/Makefile b/drivers/input/touchscreen/ft5435_ulysse/focaltech_flash/Makefile
+index 32845da51873..108d01573e5b 100644
+--- a/drivers/input/touchscreen/ft5435_ulysse/focaltech_flash/Makefile
++++ b/drivers/input/touchscreen/ft5435_ulysse/focaltech_flash/Makefile
+@@ -5,6 +5,6 @@
+ # Each configuration option enables a list of files.
+ 
+ 
+-obj-$(CONFIG_TOUCHSCREEN_FT5435) += focaltech_upgrade_ft5x46.o
+-obj-$(CONFIG_TOUCHSCREEN_FT5435) += focaltech_upgrade_idc.o
+-obj-$(CONFIG_TOUCHSCREEN_FT5435) += focaltech_upgrade_test.o
++obj-$(CONFIG_TOUCHSCREEN_FT5435_ULYSSE) += focaltech_upgrade_ft5x46.o
++obj-$(CONFIG_TOUCHSCREEN_FT5435_ULYSSE) += focaltech_upgrade_idc.o
++obj-$(CONFIG_TOUCHSCREEN_FT5435_ULYSSE) += focaltech_upgrade_test.o
+-- 
+2.20.1
+

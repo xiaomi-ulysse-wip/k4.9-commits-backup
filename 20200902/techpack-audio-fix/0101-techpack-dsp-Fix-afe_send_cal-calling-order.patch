@@ -1,0 +1,29 @@
+From 5b4beaf3e0c39ea9eb759dee6992212b8dd5314c Mon Sep 17 00:00:00 2001
+From: Artem Borisov <dedsa2002@gmail.com>
+Date: Tue, 6 Nov 2018 14:59:20 +0400
+Subject: [PATCH 101/110] techpack: dsp: Fix afe_send_cal calling order
+
+To avoid the useless warning.
+
+Change-Id: I6f45b61d9409be355b8a863e8c4efd75f9ce9cfa
+---
+ techpack/audio/dsp/q6afe.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/techpack/audio/dsp/q6afe.c b/techpack/audio/dsp/q6afe.c
+index 959eb616852b..9861494c4a5e 100644
+--- a/techpack/audio/dsp/q6afe.c
++++ b/techpack/audio/dsp/q6afe.c
+@@ -1697,8 +1697,8 @@ void afe_send_cal(u16 port_id)
+ 		if (ret < 0)
+ 			send_afe_cal_type(AFE_LSM_TX_CAL, port_id);
+ 	} else if (afe_get_port_type(port_id) == MSM_AFE_PORT_TYPE_RX) {
+-		send_afe_cal_type(AFE_COMMON_RX_CAL, port_id);
+ 		afe_send_cal_spkr_prot_rx(port_id);
++		send_afe_cal_type(AFE_COMMON_RX_CAL, port_id);
+ 	}
+ }
+ 
+-- 
+2.20.1
+

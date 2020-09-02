@@ -1,0 +1,24 @@
+From 00b46f2e5b36942fe501792b3b47d5969250f335 Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Tue, 25 Aug 2020 17:08:10 +0800
+Subject: [PATCH 077/110] ARM64: configs: ulysse: Enable Fingerprint
+
+---
+ arch/arm64/configs/ulysse_defconfig | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/arch/arm64/configs/ulysse_defconfig b/arch/arm64/configs/ulysse_defconfig
+index a7c461209018..c7721f7fa968 100644
+--- a/arch/arm64/configs/ulysse_defconfig
++++ b/arch/arm64/configs/ulysse_defconfig
+@@ -679,3 +679,7 @@ CONFIG_RC_CORE=y
+ CONFIG_IR_PWM=y
+ CONFIG_VIB_GPIO=y
+ CONFIG_ANT_CHECK=y
++
++# ugg
++CONFIG_FINGERPRINT_FPC1020_UGG=y
++CONFIG_FINGERPRINT_GF3208_UGG=y
+-- 
+2.20.1
+

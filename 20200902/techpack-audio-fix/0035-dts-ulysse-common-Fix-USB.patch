@@ -1,0 +1,27 @@
+From a3604f58f2d3c8c2f7356e42ab3232b0a5718a18 Mon Sep 17 00:00:00 2001
+From: "R. Adi Permana" <romadhonadipermana279f@gmail.com>
+Date: Tue, 25 Aug 2020 00:29:36 +0700
+Subject: [PATCH 035/110] dts: ulysse-common: Fix USB
+
+---
+ arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi b/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi
+index b69b99618600..fd20c360e15e 100644
+--- a/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi
++++ b/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi
+@@ -57,6 +57,10 @@
+ 	};
+ };
+ 
++&usb_otg {
++	extcon = <&bq2560x_otg_supply>;
++};
++
+ &apps_iommu {
+ 	qcom,no-aarch64;
+ };
+-- 
+2.20.1
+

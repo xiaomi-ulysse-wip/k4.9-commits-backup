@@ -1,0 +1,28 @@
+From 7c9772f59040b34e5da258e94a098a3bfd6ec3c3 Mon Sep 17 00:00:00 2001
+From: "R. Adi Permana" <romadhonadipermana279f@gmail.com>
+Date: Sat, 15 Aug 2020 16:56:37 +0700
+Subject: [PATCH 010/110] dts: Set correct contiguous region address
+
+---
+ arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi b/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi
+index 1eea740bd8af..b69b99618600 100644
+--- a/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi
++++ b/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi
+@@ -51,6 +51,11 @@
+ 	cd-gpios = <&tlmm 67 0x0>;
+ };
+ 
++&mdss_fb0 {
++	qcom,cont-splash-memory {
++		linux,contiguous-region = <0xb4>;
++	};
++};
+ 
+ &apps_iommu {
+ 	qcom,no-aarch64;
+-- 
+2.20.1
+

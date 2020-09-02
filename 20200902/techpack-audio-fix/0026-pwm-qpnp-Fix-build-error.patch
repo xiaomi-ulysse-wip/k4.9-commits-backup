@@ -1,0 +1,143 @@
+From d9b001434dc8714b3309aceb061e70f664917355 Mon Sep 17 00:00:00 2001
+From: "R. Adi Permana" <romadhonadipermana279f@gmail.com>
+Date: Wed, 19 Aug 2020 18:15:25 +0700
+Subject: [PATCH 026/110] pwm-qpnp: Fix build error
+
+---
+ drivers/pwm/pwm-qpnp.c                 | 44 +++++++++++++-------------
+ include/uapi/linux/input-event-codes.h |  1 +
+ 2 files changed, 23 insertions(+), 22 deletions(-)
+
+diff --git a/drivers/pwm/pwm-qpnp.c b/drivers/pwm/pwm-qpnp.c
+index ae781938fa72..99e09d9be2fb 100644
+--- a/drivers/pwm/pwm-qpnp.c
++++ b/drivers/pwm/pwm-qpnp.c
+@@ -1097,13 +1097,13 @@ void pull_down_dtest1(void)
+ 	long rc = 0;
+ 
+ 	reg = 0xA5;
+-	rc = spmi_ext_register_writel(pwm_chip->spmi_dev->ctrl, pwm_chip->spmi_dev->sid,
+-									pwm_chip->lpg_config.base_addr+0xD0, &reg, 1);
++	rc = regmap_write(pwm_chip->regmap,
++									pwm_chip->lpg_config.base_addr+0xD0, reg);
+ 	if(rc)
+ 		pr_err("Failed to unlock the Secure register\n ");
+ 	reg = 0x1;
+-	rc = spmi_ext_register_writel(pwm_chip->spmi_dev->ctrl, pwm_chip->spmi_dev->sid,
+-					pwm_chip->lpg_config.base_addr+0xE2, &reg, 1);
++    rc = regmap_write(pwm_chip->regmap,
++					pwm_chip->lpg_config.base_addr+0xE2, reg);
+ 	if(rc)
+ 		pr_err("Failed to setting DTEST1 LPG_OUT_lo\n");
+ }
+@@ -1117,8 +1117,8 @@ long stop_ir_pwm_data(void)
+ 		pwm_chip->enabled = false;
+ 
+ 		reg = 0x0;
+-		spmi_ext_register_writel(pwm_chip->spmi_dev->ctrl, pwm_chip->spmi_dev->sid,
+-							pwm_chip->lpg_config.base_addr+0x46, &reg, 1);
++		regmap_write(pwm_chip->regmap,
++							pwm_chip->lpg_config.base_addr+0x46, reg);
+ 		if(rc){
+ 			pr_err("Failed to disable PWM output disable\n");
+ 			return -1;
+@@ -1138,8 +1138,8 @@ long qpnp_ir_pwm_data(void *arg)
+ 	spin_lock_irqsave(&pwm_chip->lpg_lock, flags);
+ 
+ 	reg = 0xA5;
+-	rc = spmi_ext_register_writel(pwm_chip->spmi_dev->ctrl, pwm_chip->spmi_dev->sid,
+-								pwm_chip->lpg_config.base_addr+0xD0, &reg, 1);
++	rc = regmap_write(pwm_chip->regmap,
++								pwm_chip->lpg_config.base_addr+0xD0, reg);
+ 	if(rc){
+ 		pr_err("Failed to unlock the Secure register\n ");
+ 		goto error;
+@@ -1147,8 +1147,8 @@ long qpnp_ir_pwm_data(void *arg)
+ 
+ 	if(pwm_chip->dtest_line == 1) {
+ 		reg = 0x1;
+-		rc = spmi_ext_register_writel(pwm_chip->spmi_dev->ctrl, pwm_chip->spmi_dev->sid,
+-									pwm_chip->lpg_config.base_addr+0xE2, &reg, 1);
++		rc = regmap_write(pwm_chip->regmap,
++									pwm_chip->lpg_config.base_addr+0xE2, reg);
+ 		if(rc){
+ 			pr_err("Failed to setting DTEST1 LPG_OUT_lo\n");
+ 			goto error;
+@@ -1156,15 +1156,15 @@ long qpnp_ir_pwm_data(void *arg)
+ 	}
+ 
+ 	reg = 0xA8;
+-	rc  = spmi_ext_register_writel(pwm_chip->spmi_dev->ctrl, pwm_chip->spmi_dev->sid,
+-								   pwm_chip->lpg_config.base_addr+0x44, &reg, 1);
++	rc  = regmap_write(pwm_chip->regmap,
++								   pwm_chip->lpg_config.base_addr+0x44, reg);
+ 	if(rc){
+ 		pr_err("LSB:Failed to setting PWM duty as 0.33\n");
+ 	goto error;
+ 	}
+ 	reg = 0x0;
+-	rc = spmi_ext_register_writel(pwm_chip->spmi_dev->ctrl, pwm_chip->spmi_dev->sid,
+-								   pwm_chip->lpg_config.base_addr+0x45, &reg, 1);
++	rc = regmap_write(pwm_chip->regmap,
++								   pwm_chip->lpg_config.base_addr+0x45, reg);
+ 	if(rc){
+ 		pr_err("MSB: Failed to setting PWM duty as 0.33 \n");
+ 		goto error;
+@@ -1175,8 +1175,8 @@ long qpnp_ir_pwm_data(void *arg)
+ 		if (pkt->next & 0x01)
+ 		{
+ 			reg = 0x0;
+-			spmi_ext_register_writel(pwm_chip->spmi_dev->ctrl, pwm_chip->spmi_dev->sid,
+-												pwm_chip->lpg_config.base_addr+0x46, &reg, 1);
++			regmap_write(pwm_chip->regmap,
++												pwm_chip->lpg_config.base_addr+0x46, reg);
+ 			if(rc){
+ 				pr_err("Failed to disable PWM output disable\n");
+ 				goto error;
+@@ -1184,16 +1184,16 @@ long qpnp_ir_pwm_data(void *arg)
+ 		} else {
+ 
+ 			reg = 0x80;
+-			rc = spmi_ext_register_writel(pwm_chip->spmi_dev->ctrl, pwm_chip->spmi_dev->sid,
+-												pwm_chip->lpg_config.base_addr+0x46, &reg, 1);
++			rc = regmap_write(pwm_chip->regmap,
++												pwm_chip->lpg_config.base_addr+0x46, reg);
+ 			if(rc){
+ 				pr_err("Failed to Writing PWM output enable register\n");
+ 				goto error;
+ 			}
+ 
+ 			reg = 0x1;
+-			rc = spmi_ext_register_writel(pwm_chip->spmi_dev->ctrl, pwm_chip->spmi_dev->sid,
+-												pwm_chip->lpg_config.base_addr+0x47, &reg, 1);
++			rc = regmap_write(pwm_chip->regmap,
++												pwm_chip->lpg_config.base_addr+0x47, reg);
+ 			if(rc){
+ 				pr_err("Failed to enable PWM output\n");
+ 				goto error;
+@@ -1206,8 +1206,8 @@ long qpnp_ir_pwm_data(void *arg)
+ 	}
+ 
+ 	reg = 0x0;
+-	rc = spmi_ext_register_writel(pwm_chip->spmi_dev->ctrl, pwm_chip->spmi_dev->sid,
+-												pwm_chip->lpg_config.base_addr+0x46, &reg, 1);
++	rc = regmap_write(pwm_chip->regmap,
++												pwm_chip->lpg_config.base_addr+0x46, reg);
+ 	if(rc){
+ 			pr_err("Failed to disable PWM output\n");
+ 			goto error;
+diff --git a/include/uapi/linux/input-event-codes.h b/include/uapi/linux/input-event-codes.h
+index 48bbd7736ac1..c64fef975bde 100644
+--- a/include/uapi/linux/input-event-codes.h
++++ b/include/uapi/linux/input-event-codes.h
+@@ -26,6 +26,7 @@
+ #define INPUT_PROP_TOPBUTTONPAD		0x04	/* softbuttons at top of pad */
+ #define INPUT_PROP_POINTING_STICK	0x05	/* is a pointing stick */
+ #define INPUT_PROP_ACCELEROMETER	0x06	/* has accelerometer */
++#define INPUT_PROP_NO_DUMMY_RELEASE	0x06	/* no dummy event */
+ 
+ #define INPUT_PROP_MAX			0x1f
+ #define INPUT_PROP_CNT			(INPUT_PROP_MAX + 1)
+-- 
+2.20.1
+

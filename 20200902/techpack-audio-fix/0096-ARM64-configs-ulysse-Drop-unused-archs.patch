@@ -1,0 +1,26 @@
+From 091eda179ed00554a4c1ac3ffd962c83ead7a403 Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Wed, 26 Aug 2020 22:10:32 +0800
+Subject: [PATCH 096/110] ARM64: configs: ulysse: Drop unused archs
+
+---
+ arch/arm64/configs/ulysse_defconfig | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/arch/arm64/configs/ulysse_defconfig b/arch/arm64/configs/ulysse_defconfig
+index 1252ed81390f..b4b8171ccb6b 100644
+--- a/arch/arm64/configs/ulysse_defconfig
++++ b/arch/arm64/configs/ulysse_defconfig
+@@ -57,9 +57,6 @@ CONFIG_ARCH_QCOM=y
+ CONFIG_ARCH_MSM8937=y
+ CONFIG_ARCH_MSM8940=y
+ CONFIG_ARCH_MSM8917=y
+-CONFIG_ARCH_QM215=y
+-CONFIG_ARCH_SDM429=y
+-CONFIG_ARCH_SDM439=y
+ # CONFIG_ARM64_ERRATUM_1024718 is not set
+ CONFIG_SCHED_MC=y
+ CONFIG_NR_CPUS=8
+-- 
+2.20.1
+

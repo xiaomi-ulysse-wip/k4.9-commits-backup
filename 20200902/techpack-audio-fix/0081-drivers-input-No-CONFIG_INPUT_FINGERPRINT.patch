@@ -1,0 +1,22 @@
+From 49590e5912d0a786f8aecdfc31ce28d57b4c17ba Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Tue, 25 Aug 2020 17:55:00 +0800
+Subject: [PATCH 081/110] drivers: input: No CONFIG_INPUT_FINGERPRINT
+
+---
+ drivers/input/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/input/Makefile b/drivers/input/Makefile
+index e46f7e1b954d..50c7f3ca5b7e 100644
+--- a/drivers/input/Makefile
++++ b/drivers/input/Makefile
+@@ -35,4 +35,4 @@ obj-$(CONFIG_INPUT_KEYRESET)	+= keyreset.o
+ obj-$(CONFIG_INPUT_KEYCOMBO)	+= keycombo.o
+ obj-$(CONFIG_SMI130)   += sensors/smi130/
+ 
+-obj-$(CONFIG_INPUT_FINGERPRINT)	+= fingerprint/
++obj-y				+= fingerprint/
+-- 
+2.20.1
+

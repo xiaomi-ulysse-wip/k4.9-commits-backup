@@ -1,0 +1,33 @@
+From cd7d4cb8e484ae8575bad50e8e5f967394a4d9f2 Mon Sep 17 00:00:00 2001
+From: Quallenauge <Hamsi2k@freenet.de>
+Date: Thu, 9 May 2019 01:40:35 -0100
+Subject: [PATCH 044/110] msm: camera-legacy: Add V4L2_CAP_DEVICE_CAPS to caps
+
+Like commit "msm-jpegdma: Add V4L2_CAP_DEVICE_CAPS to caps"
+this adapts camera querycap function to new v4l2 requirements
+introduced in k4.9.
+
+Signed-off-by: Lau <laststandrighthere@gmail.com>
+Signed-off-by: Albert I <kras@raphielgang.org>
+---
+ drivers/media/platform/msm/camera_v2-legacy/camera/camera.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/camera/camera.c b/drivers/media/platform/msm/camera_v2-legacy/camera/camera.c
+index 9fd53fc333ce..c41deda094dc 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/camera/camera.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/camera/camera.c
+@@ -106,6 +106,10 @@ static int camera_v4l2_querycap(struct file *filep, void *fh,
+ 
+ 	rc = camera_check_event_status(&event);
+ 
++	cap->device_caps = V4L2_CAP_STREAMING |
++			V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_VIDEO_CAPTURE;
++	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
++
+ 	return rc;
+ }
+ 
+-- 
+2.20.1
+

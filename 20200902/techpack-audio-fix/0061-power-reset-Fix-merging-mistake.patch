@@ -1,0 +1,25 @@
+From fddd14560d26e1010f9bc1534e3689197105771f Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Tue, 25 Aug 2020 05:09:25 +0800
+Subject: [PATCH 061/110] power: reset: Fix merging mistake
+
+---
+ drivers/power/reset/msm-poweroff.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/drivers/power/reset/msm-poweroff.c b/drivers/power/reset/msm-poweroff.c
+index 38ab7017afec..9624ca272fd0 100644
+--- a/drivers/power/reset/msm-poweroff.c
++++ b/drivers/power/reset/msm-poweroff.c
+@@ -71,8 +71,6 @@ int download_mode = 0;
+ static const int download_mode;
+ #endif
+ 
+-static int in_panic;
+-
+ static int panic_prep_restart(struct notifier_block *this,
+ 			      unsigned long event, void *ptr)
+ {
+-- 
+2.20.1
+

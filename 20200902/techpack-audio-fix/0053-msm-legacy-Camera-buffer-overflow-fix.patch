@@ -1,0 +1,44 @@
+From c53d46bcf057c9fef6973c1504e77049b44e8328 Mon Sep 17 00:00:00 2001
+From: Manish Poddar <mpoddar@codeaurora.org>
+Date: Thu, 7 Jul 2016 17:22:06 +0530
+Subject: [PATCH 053/110] msm: legacy: Camera buffer overflow fix
+
+find_first_zero bit is considering addr parameter as unsigned
+long and we are passing int variable.In the function it access
+addr[i], so it tries to access 8 bytes , actual size of
+open_idx and stream_id are 4 bytes.we change open_idx and
+stream_id to long to fix it.
+
+Change-Id: I510059cc8f495957bd2b5af9973b3495761edd06
+Signed-off-by: Manish Poddar <mpoddar@codeaurora.org>
+Signed-off-by: Lau <laststandrighthere@gmail.com>
+Signed-off-by: Albert I <kras@raphielgang.org>
+---
+ drivers/media/platform/msm/camera_v2-legacy/camera/camera.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/camera/camera.c b/drivers/media/platform/msm/camera_v2-legacy/camera/camera.c
+index c41deda094dc..aa04f1c02f3b 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/camera/camera.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/camera/camera.c
+@@ -555,7 +555,7 @@ static int camera_v4l2_fh_open(struct file *filep)
+ {
+ 	struct msm_video_device *pvdev = video_drvdata(filep);
+ 	struct camera_v4l2_private *sp;
+-	unsigned int stream_id;
++	unsigned long stream_id;
+ 
+ 	sp = kzalloc(sizeof(*sp), GFP_KERNEL);
+ 	if (!sp) {
+@@ -642,7 +642,7 @@ static int camera_v4l2_open(struct file *filep)
+ 	int rc = 0;
+ 	struct v4l2_event event;
+ 	struct msm_video_device *pvdev = video_drvdata(filep);
+-	unsigned int opn_idx, idx;
++	unsigned long opn_idx, idx;
+ 	BUG_ON(!pvdev);
+ 
+ 	mutex_lock(&pvdev->video_drvdata_mutex);
+-- 
+2.20.1
+
