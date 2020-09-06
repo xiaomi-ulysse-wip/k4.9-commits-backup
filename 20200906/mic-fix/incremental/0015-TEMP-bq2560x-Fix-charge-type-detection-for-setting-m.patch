@@ -1,0 +1,63 @@
+From 0b961ecbfd4c19956de8a1eaf1687e481894bdd3 Mon Sep 17 00:00:00 2001
+From: "R. Adi Permana" <romadhonadipermana279f@gmail.com>
+Date: Sat, 5 Sep 2020 23:55:06 +0700
+Subject: [PATCH 15/15] TEMP: bq2560x: Fix charge type detection for setting
+ max curr and volt
+
+---
+ drivers/power/supply/qcom/bq2560x_charger.c | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/power/supply/qcom/bq2560x_charger.c b/drivers/power/supply/qcom/bq2560x_charger.c
+index 88e33fefd701..d05efe249fe4 100644
+--- a/drivers/power/supply/qcom/bq2560x_charger.c
++++ b/drivers/power/supply/qcom/bq2560x_charger.c
+@@ -1164,16 +1164,20 @@ static int bq2560x_update_charging_profile(struct bq2560x *bq)
+ 		chg_ma = bq->jeita_ma;
+ 		chg_mv = bq->jeita_mv;
+ 	} else {
+-		if (prop.intval == POWER_SUPPLY_TYPE_USB_DCP
++		if (bq->usb_supply_type == POWER_SUPPLY_TYPE_USB_DCP
+ 			|| prop.intval == POWER_SUPPLY_TYPE_USB_CDP) {
++
+ 			chg_ma = bq->platform_data->ta.ichg;
+ 			chg_mv = bq->platform_data->ta.vreg;
++			pr_err("DCP or CDP detected, set max current to : %d, max voltage to : %d\n", chg_ma,chg_mv);
+ 		} else {
+ 			chg_ma = bq->platform_data->usb.ichg;
+ 			chg_mv = bq->platform_data->usb.vreg;
++			pr_err("USB detected, set max current to : %d, max voltage to : %d\n", chg_ma,chg_mv);
++
+ 		}
+ 	}
+-	
++
+ 	icl = bq->usb_psy_ma;
+ 	if (bq->usb_psy_ma < chg_ma) {
+ 		chg_ma = bq->usb_psy_ma;
+@@ -1222,6 +1226,10 @@ static int bq2560x_system_temp_level_set(struct bq2560x *bq,
+ 	int ret = 0;
+ 	int prev_therm_lvl;
+ 
++	ret = bq2560x_update_charging_profile(bq);
++	if (ret)
++		pr_err("Couldn't set USB current ret = %d\n", ret);
++
+ 	pr_err("lvl_sel=%d, bq->therm_lvl_sel = %d\n", lvl_sel, bq->therm_lvl_sel);
+ 	if (BatteryTestStatus_enable)
+ 		return 0;
+@@ -1997,8 +2005,9 @@ static void bq2560x_dump_status(struct bq2560x* bq)
+ 			pr_err("bq Reg red err\n");
+ 	}
+ 
+-	
+-
++	ret = bq2560x_update_charging_profile(bq);
++	if (ret)
++		pr_err("Couldn't set USB current ret = %d\n", ret);
+ 
+ 	if (!bq->power_good)
+ 		pr_info("Power Poor\n");
+-- 
+2.20.1
+

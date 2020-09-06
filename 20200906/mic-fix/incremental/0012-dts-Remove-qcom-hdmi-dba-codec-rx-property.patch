@@ -1,0 +1,25 @@
+From f182ec345b56f36219eaa32da835a3f818ce669f Mon Sep 17 00:00:00 2001
+From: "R. Adi Permana" <romadhonadipermana279f@gmail.com>
+Date: Mon, 31 Aug 2020 20:22:56 +0700
+Subject: [PATCH 12/15] dts: Remove qcom,hdmi-dba-codec-rx property
+
+---
+ arch/arm64/boot/dts/qcom/ulysse-common/common-audio.dtsi | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/ulysse-common/common-audio.dtsi b/arch/arm64/boot/dts/qcom/ulysse-common/common-audio.dtsi
+index 2bc918d24445..dd04f471dd96 100644
+--- a/arch/arm64/boot/dts/qcom/ulysse-common/common-audio.dtsi
++++ b/arch/arm64/boot/dts/qcom/ulysse-common/common-audio.dtsi
+@@ -23,7 +23,7 @@
+         qcom,msm-micbias2-ext-cap;
+ 	qcom,smg3711-enable-gpio = <&tlmm 25 0>;
+ 	qcom,smg3711-in-gpio = <&tlmm 16 0>;
+-	qcom,hdmi-dba-codec-rx;
++	/delete-property/ qcom,hdmi-dba-codec-rx;
+ 
+ 	qcom,msm-gpios =
+ 		"pri_i2s",
+-- 
+2.20.1
+

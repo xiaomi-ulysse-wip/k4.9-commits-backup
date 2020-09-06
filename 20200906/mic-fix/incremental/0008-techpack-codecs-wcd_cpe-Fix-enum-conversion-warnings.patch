@@ -1,0 +1,43 @@
+From 78d4326699e1cb2f0bd2f2947622c07b8aa04b2b Mon Sep 17 00:00:00 2001
+From: Artem Borisov <dedsa2002@gmail.com>
+Date: Fri, 9 Nov 2018 02:34:26 +0400
+Subject: [PATCH 08/15] techpack: codecs: wcd_cpe: Fix enum conversion warnings
+
+Change-Id: I0fe6b10f55b5243d55e4c18c8f44d5bb123bd865
+---
+ techpack/audio/asoc/codecs/wcd_cmi_api.h      | 4 ++--
+ techpack/audio/asoc/codecs/wcd_cpe_services.c | 3 +--
+ 2 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/techpack/audio/asoc/codecs/wcd_cmi_api.h b/techpack/audio/asoc/codecs/wcd_cmi_api.h
+index 39be6417e327..cd8e83d14c0f 100644
+--- a/techpack/audio/asoc/codecs/wcd_cmi_api.h
++++ b/techpack/audio/asoc/codecs/wcd_cmi_api.h
+@@ -28,8 +28,8 @@ enum cmi_api_event {
+ };
+ 
+ struct cmi_api_notification {
+-	enum cmi_api_event event;
+-	enum cmi_api_result result;
++	int event;
++	int result;
+ 	void *message;
+ };
+ 
+diff --git a/techpack/audio/asoc/codecs/wcd_cpe_services.c b/techpack/audio/asoc/codecs/wcd_cpe_services.c
+index e584cf05a6ef..6fbb9cbece40 100644
+--- a/techpack/audio/asoc/codecs/wcd_cpe_services.c
++++ b/techpack/audio/asoc/codecs/wcd_cpe_services.c
+@@ -1134,8 +1134,7 @@ static void cpe_clk_plan_work(struct work_struct *work)
+ 	cmi_deregister(cpe_d.cpe_cmi_handle);
+ }
+ 
+-static enum cpe_process_result cpe_boot_complete(
+-		struct cpe_info *t_info)
++static int cpe_boot_complete(struct cpe_info *t_info)
+ {
+ 	struct cmi_core_svc_cmdrsp_shared_mem_alloc *p = NULL;
+ 
+-- 
+2.20.1
+
