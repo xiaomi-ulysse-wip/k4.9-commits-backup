@@ -1,0 +1,224 @@
+From 90a60cf43e7aa9cedce1e27f0a68593a2a13daa5 Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Sun, 6 Sep 2020 04:07:10 +0800
+Subject: [PATCH 3/5] ARM64: dts: ugglite: Adapt GhiffaryR OC v3 changes
+
+---
+ .../boot/dts/qcom/ugglite/msm8917-oc.dtsi     | 195 ++++++++++++++++++
+ .../dts/qcom/ugglite/ugglite-msm8917.dtsi     |   1 +
+ 2 files changed, 196 insertions(+)
+ create mode 100644 arch/arm64/boot/dts/qcom/ugglite/msm8917-oc.dtsi
+
+diff --git a/arch/arm64/boot/dts/qcom/ugglite/msm8917-oc.dtsi b/arch/arm64/boot/dts/qcom/ugglite/msm8917-oc.dtsi
+new file mode 100644
+index 000000000000..044dc1789e09
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/ugglite/msm8917-oc.dtsi
+@@ -0,0 +1,195 @@
++/* GhiffaryR Overclock Kernel v3 - Adapted for msm8917*/
++/* WARNING: Just directly imported from 3.18 without any changes! */
++
++/* msm8917-bus.dtsi */
++&mas_oxili {
++	qcom,buswidth = <16>;
++};
++
++&slv_gpu_cfg {
++	qcom,buswidth = <16>;
++};
++
++/* msm8917-gpu.dtsi */
++&msm_gpu {
++	qcom,bus-width = <32>;
++
++	qcom,gpu-pwrlevels {
++		/* TURBO */
++		qcom,gpu-pwrlevel@0 {
++			qcom,gpu-freq = <620000000>;
++			qcom,bus-freq = <8>;
++			qcom,bus-min = <8>;
++			qcom,bus-max = <8>;
++		};
++
++		/* NOM+ */
++		qcom,gpu-pwrlevel@1 {
++			qcom,gpu-freq = <600000000>;
++			qcom,bus-freq = <8>;
++			qcom,bus-min = <8>;
++			qcom,bus-max = <8>;
++		};
++
++		/* NOM */
++		qcom,gpu-pwrlevel@2 {
++			qcom,gpu-freq = <450000000>;
++		};
++
++		/* SVS+ */
++		qcom,gpu-pwrlevel@3 {
++			qcom,gpu-freq = <375000000>;
++		};
++
++		/* SVS */
++		qcom,gpu-pwrlevel@4 {
++			qcom,gpu-freq = <240000000>;
++		};
++	};
++};
++
++/* msm8917-regulator.dtsi */
++&mem_acc_vreg_corner {
++	regulator-max-microvolt = <4>;
++};
++
++&apc_vreg_corner {
++	regulator-max-microvolt = <10>;
++	qcom,cpr-voltage-floor =   <1050000 1190000 1350000>;
++	qcom,cpr-corner-map = <1 2 3 3 3 3 3 3 3 3>;
++	qcom,cpr-corner-frequency-map =
++			<1 960000000>,
++			<2 1094400000>,
++			<3 1248000000>,
++			<4 1401000000>,
++			<5 1497600000>,
++			<6 1516800000>,
++			<7 1555200000>,
++			<8 1574400000>,
++			<9 1651200000>,
++			<10 1708800000>;
++	qcom,cpr-speed-bin-max-corners =
++				<0 (-1) 1 2 9>,
++				<1 (-1) 1 2 10>;
++};
++
++/* msm8917.dtsi */
++&clock_cpu {
++	qcom,speed0-bin-v0-c1 =
++		<          0 0>,
++		<  960000000 1>,
++		< 1094400000 2>,
++		< 1248000000 3>,
++		< 1401000000 4>,
++		< 1497600000 5>,
++		< 1516800000 6>,
++		< 1555200000 7>,
++		< 1574400000 8>,
++		< 1651200000 9>;
++
++	qcom,speed1-bin-v0-c1 =
++		<          0 0>,
++		<  960000000 1>,
++		< 1094400000 2>,
++		< 1248000000 3>,
++		< 1401000000 4>,
++		< 1497600000 5>,
++		< 1516800000 6>,
++		< 1555200000 7>,
++		< 1574400000 8>,
++		< 1651200000 9>,
++		< 1708800000 10>;
++};
++
++&msm_cpufreq {
++	qcom,cpufreq-table =
++		 <  960000 >,
++		 < 1094400 >,
++		 < 1248000 >,
++		 < 1401000 >,
++		 < 1497600 >,
++		 < 1516800 >,
++		 < 1555200 >,
++		 < 1574400 >,
++		 < 1651200 >,
++		 < 1708800 >;
++};
++
++&soc {
++	devfreq-cpufreq {
++		cpubw-cpufreq {
++			cpu-to-dev-map =
++				<  998400  4248 >,
++				< 1094400  4541 >,
++				< 1497600  5645 >,
++				< 1516800  5712 >,	/* TURBO+ */
++				< 1555200  5712 >,	/* TURBO++ */
++				< 1574400  6152 >,	/* TURBO+++ */
++				< 1651200  6152 >,	/* TURBO++++ */
++				< 1708800  7031 >;	/* TURBO+++++ */
++		};
++
++		mincpubw-cpufreq {
++			cpu-to-dev-map =
++				<  998400 2270 >,
++				< 1708800 4248 >;
++		};
++	};
++};
++
++&msm_gpu {
++	qcom,gpu-pwrlevel-bins {
++		qcom,gpu-pwrlevels-0 {
++			/* SUPER TURBO */
++			qcom,gpu-pwrlevel@0 {
++				qcom,gpu-freq = <620000000>;
++			};
++
++			/* TURBO */
++			qcom,gpu-pwrlevel@1 {
++				qcom,gpu-freq = <600000000>;
++			};
++
++			/* NOM */
++			qcom,gpu-pwrlevel@2 {
++				qcom,gpu-freq = <450000000>;
++			};
++
++			/* SVS+ */
++			qcom,gpu-pwrlevel@3 {
++				qcom,gpu-freq = <375000000>;
++			};
++
++			/* SVS */
++			qcom,gpu-pwrlevel@4 {
++				qcom,gpu-freq = <240000000>;
++			};
++		};
++		qcom,gpu-pwrlevels-1 {
++			/* Super TURBO */
++			qcom,gpu-pwrlevel@0 {
++				qcom,gpu-freq = <675000000>;
++			};
++
++			/* TURBO */
++			qcom,gpu-pwrlevel@1 {
++				qcom,gpu-freq = <523200000>;
++			};
++
++			/* NOM */
++			qcom,gpu-pwrlevel@3 {
++				qcom,gpu-freq = <468200000>;
++			};
++
++			/* SVS+ */
++			qcom,gpu-pwrlevel@4 {
++				qcom,gpu-freq = <340000000>;
++			};
++
++			/* SVS */
++			qcom,gpu-pwrlevel@5 {
++				qcom,gpu-freq = <214000000>;
++			};
++		};
++	};
++};
+diff --git a/arch/arm64/boot/dts/qcom/ugglite/ugglite-msm8917.dtsi b/arch/arm64/boot/dts/qcom/ugglite/ugglite-msm8917.dtsi
+index ce20fba7b19b..71180b6f16f9 100644
+--- a/arch/arm64/boot/dts/qcom/ugglite/ugglite-msm8917.dtsi
++++ b/arch/arm64/boot/dts/qcom/ugglite/ugglite-msm8917.dtsi
+@@ -14,3 +14,4 @@
+ 
+ #include "ugglite-camera.dtsi"
+ 
++#include "msm8917-oc.dtsi"
+-- 
+2.20.1
+

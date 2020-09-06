@@ -1,0 +1,29 @@
+From 3085331e3be85cf2afab817d42012203a85e00cb Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Sun, 6 Sep 2020 04:28:11 +0800
+Subject: [PATCH 5/5] ARM64: configs: ulysse: Enable BBR TCP Congestion Control
+ and set as default
+
+---
+ arch/arm64/configs/ulysse_defconfig | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/arch/arm64/configs/ulysse_defconfig b/arch/arm64/configs/ulysse_defconfig
+index 9210ab880e49..d74185a4cf78 100644
+--- a/arch/arm64/configs/ulysse_defconfig
++++ b/arch/arm64/configs/ulysse_defconfig
+@@ -683,6 +683,11 @@ CONFIG_PSTORE_CONSOLE=y
+ CONFIG_PSTORE_RAM=y
+ CONFIG_PSTORE_PMSG=y
+ 
++CONFIG_TCP_CONG_ADVANCED=y
++CONFIG_TCP_CONG_BBR=y
++CONFIG_DEFAULT_BBR=y
++CONFIG_DEFAULT_TCP_CONG="bbr"
++
+ # ulysse
+ CONFIG_CMDLINE="androidboot.usbconfigfs=true ramoops_memreserve=4M"
+ CONFIG_CMDLINE_EXTEND=y
+-- 
+2.20.1
+
