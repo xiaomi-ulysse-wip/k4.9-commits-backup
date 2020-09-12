@@ -1,0 +1,1050 @@
+From a306b21cdc48f7fcba6d0fa84a545562c9d58aae Mon Sep 17 00:00:00 2001
+From: "R. Adi Permana" <romadhonadipermana279f@gmail.com>
+Date: Wed, 26 Aug 2020 02:34:47 +0700
+Subject: [PATCH 59/71] techpack: audio: Import Xiaomi changes for ulysse
+
+---
+ .../asoc/codecs/sdm660_cdc/msm-analog-cdc.c   | 155 ++++++++++-
+ techpack/audio/asoc/codecs/wcd-mbhc-legacy.c  |  35 +++
+ techpack/audio/asoc/codecs/wcd-mbhc-v2.c      | 144 +++++++++-
+ techpack/audio/asoc/codecs/wcd-mbhc-v2.h      |   4 +
+ .../audio/asoc/codecs/wcd9xxx-common-v2.c     |   4 +
+ techpack/audio/asoc/msm-dai-fe.c              |  34 +++
+ techpack/audio/asoc/msm-pcm-routing-v2.c      |  16 ++
+ techpack/audio/asoc/msm8952.c                 | 262 +++++++++++++++++-
+ techpack/audio/asoc/msm8952.h                 |  10 +
+ 9 files changed, 659 insertions(+), 5 deletions(-)
+
+diff --git a/techpack/audio/asoc/codecs/sdm660_cdc/msm-analog-cdc.c b/techpack/audio/asoc/codecs/sdm660_cdc/msm-analog-cdc.c
+index 2d889fd659eb..6ea0c2c1b8be 100644
+--- a/techpack/audio/asoc/codecs/sdm660_cdc/msm-analog-cdc.c
++++ b/techpack/audio/asoc/codecs/sdm660_cdc/msm-analog-cdc.c
+@@ -33,6 +33,11 @@
+ #include "msm-analog-cdc-regmap.h"
+ #include "../wcd-mbhc-v2-api.h"
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++#include <linux/gpio.h>
++#include "../../msm8952.h"
++#endif
++
+ #define DRV_NAME "pmic_analog_codec"
+ #define SDM660_CDC_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
+ 			SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |\
+@@ -93,6 +98,11 @@ static char on_demand_supply_name[][MAX_ON_DEMAND_SUPPLY_NAME_LENGTH] = {
+ 	"cdc-vdd-l1",
+ };
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++static int external_spk_control = 1;
++static int external_hs_control = 0;
++#endif
++
+ static struct wcd_mbhc_register
+ 	wcd_mbhc_registers[WCD_MBHC_REG_FUNC_MAX] = {
+ 	WCD_MBHC_REGISTER("WCD_MBHC_L_DET_EN",
+@@ -201,6 +211,10 @@ static void msm_anlg_cdc_set_auto_zeroing(struct snd_soc_codec *codec,
+ static void msm_anlg_cdc_configure_cap(struct snd_soc_codec *codec,
+ 				       bool micbias1, bool micbias2);
+ static bool msm_anlg_cdc_use_mb(struct snd_soc_codec *codec);
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++extern int msm_spk_ext_pa_ctrl(struct msm_asoc_mach_data *pdatadata, bool value);
++int msm_hs_ext_pa_ctrl(struct msm_asoc_mach_data *pdatadata, bool value);
++#endif
+ 
+ static int get_codec_version(struct sdm660_cdc_priv *sdm660_cdc)
+ {
+@@ -1872,6 +1886,64 @@ static int msm_anlg_cdc_ext_spk_boost_set(struct snd_kcontrol *kcontrol,
+ 	return 0;
+ }
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++static int get_external_spk_pa(struct snd_kcontrol *kcontrol,
++		       struct snd_ctl_elem_value *ucontrol)
++{
++	pr_debug("At %d In (%s),external_spk_control=%d\n",__LINE__, __FUNCTION__,external_spk_control);
++	ucontrol->value.integer.value[0] = external_spk_control;
++	return 0;
++}
++static int set_external_spk_pa(struct snd_kcontrol *kcontrol,
++		       struct snd_ctl_elem_value *ucontrol)
++{
++	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
++	struct msm_asoc_mach_data *pdata = NULL;
++	pdata = snd_soc_card_get_drvdata(codec->component.card);
++	pr_debug("At %d In (%s),external_spk_control=%d,value.integer.value[0]=%ld\n",__LINE__, __FUNCTION__,external_spk_control,ucontrol->value.integer.value[0]);
++	if (external_spk_control == ucontrol->value.integer.value[0])
++		return 0;
++	external_spk_control = ucontrol->value.integer.value[0];
++	msm_spk_ext_pa_ctrl(pdata, external_spk_control);
++	return 1;
++}
++static int get_external_hs_pa(struct snd_kcontrol *kcontrol,
++		       struct snd_ctl_elem_value *ucontrol)
++{
++	pr_debug("At %d In (%s),external_hs_control=%d\n",__LINE__, __FUNCTION__,external_hs_control);
++	ucontrol->value.integer.value[0] = external_hs_control;
++	return 0;
++}
++static int set_external_hs_pa(struct snd_kcontrol *kcontrol,
++		       struct snd_ctl_elem_value *ucontrol)
++{
++	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
++	struct msm_asoc_mach_data *pdata = NULL;
++	pdata = snd_soc_card_get_drvdata(codec->component.card);
++	pr_debug("At %d In (%s),external_hs_control=%d,value.integer.value[0]=%ld\n",__LINE__, __FUNCTION__,external_hs_control,ucontrol->value.integer.value[0]);
++	if (external_hs_control == ucontrol->value.integer.value[0])
++		return 0;
++	external_hs_control = ucontrol->value.integer.value[0];
++	msm_hs_ext_pa_ctrl(pdata, external_hs_control);
++	return 1;
++}
++#endif
++
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++static int get_external_hp_analog_switch(struct snd_kcontrol *kcontrol,
++					   struct snd_ctl_elem_value *ucontrol)
++{
++		 return 0;
++}
++static int set_external_hp_analog_switch(struct snd_kcontrol *kcontrol,
++					   struct snd_ctl_elem_value *ucontrol)
++{
++	bool hp_analog_control = ucontrol->value.integer.value[0];
++	gpio_set_value(smg_in_gpio,!hp_analog_control);
++	return 0;
++}
++#endif
++
+ static const char * const msm_anlg_cdc_ear_pa_boost_ctrl_text[] = {
+ 		"DISABLE", "ENABLE"};
+ static const struct soc_enum msm_anlg_cdc_ear_pa_boost_ctl_enum[] = {
+@@ -1902,6 +1974,25 @@ static const struct soc_enum msm_anlg_cdc_ext_spk_boost_ctl_enum[] = {
+ 		SOC_ENUM_SINGLE_EXT(2, msm_anlg_cdc_ext_spk_boost_ctrl_text),
+ };
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++static const char * const msm_external_spk_pa_text[] = {
++		"OFF", "ON"};
++static const struct soc_enum msm_external_spk_pa_enum[] = {
++		SOC_ENUM_SINGLE_EXT(2, msm_external_spk_pa_text),
++};
++static const char * const msm_external_hs_pa_text[] = {
++		"OFF", "ON"};
++static const struct soc_enum msm_external_hs_pa_enum[] = {
++		SOC_ENUM_SINGLE_EXT(2, msm_external_hs_pa_text),
++};
++static const char * const msm_external_hp_analog_switch_text[] = {
++				"OFF", "ON"};
++static const struct soc_enum msm_external_hp_analog_switch_enum[] = {
++				SOC_ENUM_SINGLE_EXT(2, msm_external_hp_analog_switch_text),
++};
++#endif
++
++
+ static const char * const msm_anlg_cdc_hph_mode_ctrl_text[] = {
+ 		"NORMAL", "HD2"};
+ static const struct soc_enum msm_anlg_cdc_hph_mode_ctl_enum[] = {
+@@ -1928,6 +2019,16 @@ static const struct snd_kcontrol_new msm_anlg_cdc_snd_controls[] = {
+ 
+ 	SOC_ENUM_EXT("EAR PA Gain", msm_anlg_cdc_ear_pa_gain_enum[0],
+ 		msm_anlg_cdc_pa_gain_get, msm_anlg_cdc_pa_gain_put),
++        
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	SOC_ENUM_EXT("Speaker PA Open", msm_external_spk_pa_enum[0],
++		get_external_spk_pa, set_external_spk_pa),
++	SOC_ENUM_EXT("HS PA Open", msm_external_hs_pa_enum[0],
++		get_external_hs_pa, set_external_hs_pa),
++
++	SOC_ENUM_EXT("HP ANALOG SWITCH", msm_external_hp_analog_switch_enum[0],
++				get_external_hp_analog_switch, set_external_hp_analog_switch),
++#endif
+ 
+ 	SOC_ENUM_EXT("Speaker Boost", msm_anlg_cdc_spk_boost_ctl_enum[0],
+ 		msm_anlg_cdc_spk_boost_get, msm_anlg_cdc_spk_boost_set),
+@@ -2101,6 +2202,35 @@ static const struct snd_kcontrol_new lo_mux[] = {
+ 	SOC_DAPM_ENUM("LINE_OUT", lo_enum)
+ };
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++int msm_hs_ext_pa_ctrl(struct msm_asoc_mach_data *pdatadata, bool value)
++{
++	struct msm_asoc_mach_data *pdata = pdatadata;
++	bool on_off = value;
++	int ret = 0;
++
++	pr_debug("%s, hs_is_on=%d,spk_hs_switch_gpio=%d, on_off=%d\n", __func__, pdata->hs_is_on,pdata->spk_hs_switch_gpio, on_off);
++	if (gpio_is_valid(pdata->spk_hs_switch_gpio)) {
++		if (on_off)
++		{
++			gpio_set_value_cansleep(pdata->spk_hs_switch_gpio, false);
++			msleep(3);
++			pr_debug("At %d In (%s),after set,spk_hs_switch_gpio=%d\n",__LINE__, __FUNCTION__,gpio_get_value(pdata->spk_hs_switch_gpio));
++		} else {
++			gpio_set_value_cansleep(pdata->spk_hs_switch_gpio, true);
++			msleep(3);
++			pr_debug("At %d In (%s),after close,spk_hs_switch_gpio=%d\n",__LINE__, __FUNCTION__,gpio_get_value(pdata->spk_hs_switch_gpio));
++		}
++	} else {
++		pr_debug("%s, error\n", __func__);
++		ret = -EINVAL;
++	}
++
++	return ret;
++}
++
++#endif
++
+ static void msm_anlg_cdc_codec_enable_adc_block(struct snd_soc_codec *codec,
+ 					 int enable)
+ {
+@@ -2215,7 +2345,10 @@ static int msm_anlg_cdc_codec_enable_spk_pa(struct snd_soc_dapm_widget *w,
+ 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+ 	struct sdm660_cdc_priv *sdm660_cdc =
+ 					snd_soc_codec_get_drvdata(codec);
+-
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	struct msm_asoc_mach_data *pdata = NULL;
++	pdata = snd_soc_card_get_drvdata(codec->component.card);
++#endif
+ 	dev_dbg(codec->dev, "%s %d %s\n", __func__, event, w->name);
+ 	switch (event) {
+ 	case SND_SOC_DAPM_PRE_PMU:
+@@ -2281,8 +2414,23 @@ static int msm_anlg_cdc_codec_enable_spk_pa(struct snd_soc_dapm_widget *w,
+ 		msm_anlg_cdc_dig_notifier_call(codec,
+ 					       DIG_CDC_EVENT_RX3_MUTE_OFF);
+ 		snd_soc_update_bits(codec, w->reg, 0x80, 0x80);
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++        pdata->pa_is_on = 0;
++		pr_debug("At %d In (%s), will run msm_spk_ext_pa_ctrl,true\n",__LINE__, __FUNCTION__);
++		schedule_delayed_work(&pdata->pa_gpio_work, msecs_to_jiffies(40));
++#endif
+ 		break;
+ 	case SND_SOC_DAPM_PRE_PMD:
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++		cancel_delayed_work_sync(&pdata->pa_gpio_work);
++		msm_spk_ext_pa_ctrl(pdata, true);
++		pr_debug("At %d In (%s),close pa,spk_ext_pa_gpio_lc=%d\n",__LINE__, __FUNCTION__,gpio_get_value(pdata->spk_ext_pa_gpio_lc));
++		pdata->pa_is_on = 0;
++
++#if 0
++		msm_spk_hs_switch_ctrl(codec->card, false);
++#endif
++#endif
+ 		msm_anlg_cdc_dig_notifier_call(codec,
+ 					       DIG_CDC_EVENT_RX3_MUTE_ON);
+ 		/*
+@@ -2603,6 +2751,11 @@ static int sdm660_wcd_codec_enable_vdd_spkr(struct snd_soc_dapm_widget *w,
+ 	struct sdm660_cdc_priv *sdm660_cdc =
+ 					snd_soc_codec_get_drvdata(codec);
+ 	int ret = 0;
++    
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	struct msm_asoc_mach_data *pdata = NULL;
++	pdata = snd_soc_card_get_drvdata(codec->component.card);
++#endif
+ 
+ 	if (!sdm660_cdc->ext_spk_boost_set) {
+ 		dev_dbg(codec->dev, "%s: ext_boost not supported/disabled\n",
+diff --git a/techpack/audio/asoc/codecs/wcd-mbhc-legacy.c b/techpack/audio/asoc/codecs/wcd-mbhc-legacy.c
+index 9ebdeca01fff..06cc9b5e7c22 100644
+--- a/techpack/audio/asoc/codecs/wcd-mbhc-legacy.c
++++ b/techpack/audio/asoc/codecs/wcd-mbhc-legacy.c
+@@ -238,6 +238,16 @@ static bool wcd_is_special_headset(struct wcd_mbhc *mbhc)
+ 					__func__);
+ 			break;
+ 		}
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++    if (mbhc->impedance_detect) {
++			mbhc->mbhc_cb->compute_impedance(mbhc,
++			&mbhc->zl, &mbhc->zr);
++			if ((mbhc->zl > 20000) && (mbhc->zr > 20000)) {
++				pr_debug("%s: Selfie stick detected\n",__func__);
++				break;
++			}
++		}
++#endif
+ 	}
+ 	if (is_spl_hs) {
+ 		pr_debug("%s: Headset with threshold found\n",  __func__);
+@@ -440,7 +450,11 @@ static void wcd_correct_swch_plug(struct work_struct *work)
+ 	struct wcd_mbhc *mbhc;
+ 	struct snd_soc_codec *codec;
+ 	enum wcd_mbhc_plug_type plug_type = MBHC_PLUG_TYPE_INVALID;
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	int iRetryCount;
++#else
+ 	unsigned long timeout;
++#endif
+ 	u16 hs_comp_res = 0, hphl_sch = 0, mic_sch = 0, btn_result = 0;
+ 	bool wrk_complete = false;
+ 	int pt_gnd_mic_swap_cnt = 0;
+@@ -525,9 +539,13 @@ static void wcd_correct_swch_plug(struct work_struct *work)
+ 	}
+ 
+ correct_plug_type:
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	for(iRetryCount = 0; iRetryCount < 5; iRetryCount++) {
++#else
+ 
+ 	timeout = jiffies + msecs_to_jiffies(HS_DETECT_PLUG_TIME_MS);
+ 	while (!time_after(jiffies, timeout)) {
++#endif
+ 		if (mbhc->hs_detect_work_stop) {
+ 			pr_debug("%s: stop requested: %d\n", __func__,
+ 					mbhc->hs_detect_work_stop);
+@@ -737,7 +755,24 @@ static void wcd_correct_swch_plug(struct work_struct *work)
+ 	if (mbhc->mbhc_cb->mbhc_micbias_control)
+ 		wcd_mbhc_update_fsm_source(mbhc, plug_type);
+ 	else
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++    {
++	      if (mbhc->impedance_detect) {
++			mbhc->mbhc_cb->compute_impedance(mbhc,
++			&mbhc->zl, &mbhc->zr);
++				if ((mbhc->zl > 20000) && (mbhc->zr > 20000)) {
++					pr_debug("%s:Selfie stick device,need enable btn isrc ctrl",__func__);
++					wcd_enable_mbhc_supply(mbhc, MBHC_PLUG_TYPE_HEADSET);
++				} else{
++			wcd_enable_mbhc_supply(mbhc, plug_type);
++			}
++		} else{
++#endif
+ 		wcd_enable_mbhc_supply(mbhc, plug_type);
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++        }
++	}
++#endif
+ exit:
+ 	if (mbhc->mbhc_cb->mbhc_micbias_control &&
+ 	    !mbhc->micbias_enable)
+diff --git a/techpack/audio/asoc/codecs/wcd-mbhc-v2.c b/techpack/audio/asoc/codecs/wcd-mbhc-v2.c
+index ce40f22d72c7..901d8a417058 100644
+--- a/techpack/audio/asoc/codecs/wcd-mbhc-v2.c
++++ b/techpack/audio/asoc/codecs/wcd-mbhc-v2.c
+@@ -33,6 +33,20 @@
+ #include "wcd-mbhc-adc.h"
+ #include "wcd-mbhc-v2-api.h"
+ 
++
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++#define PA_GPIO 1
++
++    static int det_extn_cable_en;
++    int smg_enable_gpio = 0;
++    int smg_in_gpio = 0;
++
++static void wcd_enable_mbhc_supply(struct wcd_mbhc *mbhc,
++			enum wcd_mbhc_plug_type plug_type);
++#endif
++
++
++
+ void wcd_mbhc_jack_report(struct wcd_mbhc *mbhc,
+ 			  struct snd_soc_jack *jack, int status, int mask)
+ {
+@@ -413,6 +427,10 @@ static void wcd_mbhc_clr_and_turnon_hph_padac(struct wcd_mbhc *mbhc)
+ {
+ 	bool pa_turned_on = false;
+ 	u8 wg_time = 0;
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE    
++    if(gpio_get_value(PA_GPIO))
++	return;
++#endif
+ 
+ 	WCD_MBHC_REG_READ(WCD_MBHC_HPH_CNP_WG_TIME, wg_time);
+ 	wg_time += 1;
+@@ -796,7 +814,26 @@ void wcd_mbhc_find_plug_and_report(struct wcd_mbhc *mbhc,
+ 			wcd_mbhc_report_plug(mbhc, 0, SND_JACK_HEADPHONE);
+ 		if (mbhc->current_plug == MBHC_PLUG_TYPE_HEADSET)
+ 			wcd_mbhc_report_plug(mbhc, 0, SND_JACK_HEADSET);
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++        if (mbhc->impedance_detect) {
++			mbhc->mbhc_cb->compute_impedance(mbhc,
++			&mbhc->zl, &mbhc->zr);
++        if ((mbhc->zl > 20000) && (mbhc->zr > 20000)) {
++            pr_debug("%s: special accessory \n", __func__);
++            if (mbhc->mbhc_cfg->swap_gnd_mic &&
++                mbhc->mbhc_cfg->swap_gnd_mic(mbhc->codec, true)) {
++                pr_debug("%s: US_EU gpio present,flip switch again\n"
++                , __func__);
++            }
++        wcd_enable_mbhc_supply(mbhc, MBHC_PLUG_TYPE_HEADSET);
++        wcd_mbhc_report_plug(mbhc, 1, SND_JACK_HEADSET);
++            } else {
++                wcd_mbhc_report_plug(mbhc, 1, SND_JACK_UNSUPPORTED);
++            }
++        }
++#else
+ 		wcd_mbhc_report_plug(mbhc, 1, SND_JACK_UNSUPPORTED);
++#endif
+ 	} else if (plug_type == MBHC_PLUG_TYPE_HEADSET) {
+ 		if (mbhc->mbhc_cfg->enable_anc_mic_detect &&
+ 		    mbhc->mbhc_fn->wcd_mbhc_detect_anc_plug_type)
+@@ -813,6 +850,24 @@ void wcd_mbhc_find_plug_and_report(struct wcd_mbhc *mbhc,
+ 		wcd_mbhc_report_plug(mbhc, 1, jack_type);
+ 	} else if (plug_type == MBHC_PLUG_TYPE_HIGH_HPH) {
+ 		if (mbhc->mbhc_cfg->detect_extn_cable) {
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++            if (mbhc->impedance_detect) {
++			mbhc->mbhc_cb->compute_impedance(mbhc,
++			&mbhc->zl, &mbhc->zr);
++			if ((mbhc->zl > 20000) && (mbhc->zr > 20000)) {
++				pr_debug("tsx_hph_%s: special accessory \n", __func__);
++				if (mbhc->mbhc_cfg->swap_gnd_mic &&
++				mbhc->mbhc_cfg->swap_gnd_mic(mbhc->codec, true)) {
++				pr_debug("%s: US_EU gpio present,flip switch again\n"
++				, __func__);
++				}
++				wcd_enable_mbhc_supply(mbhc, MBHC_PLUG_TYPE_HEADSET);
++				wcd_mbhc_report_plug(mbhc, 1, SND_JACK_HEADSET);
++			} else {
++			 wcd_mbhc_report_plug(mbhc, 1, SND_JACK_LINEOUT);
++			}
++		    } else{
++#endif
+ 			/* High impedance device found. Report as LINEOUT */
+ 			wcd_mbhc_report_plug(mbhc, 1, SND_JACK_LINEOUT);
+ 			pr_debug("%s: setup mic trigger for further detection\n",
+@@ -832,6 +887,9 @@ void wcd_mbhc_find_plug_and_report(struct wcd_mbhc *mbhc,
+ 						 3);
+ 			wcd_mbhc_hs_elec_irq(mbhc, WCD_MBHC_ELEC_HS_INS,
+ 					     true);
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++            }
++#endif
+ 		} else {
+ 			wcd_mbhc_report_plug(mbhc, 1, SND_JACK_LINEOUT);
+ 		}
+@@ -844,6 +902,48 @@ void wcd_mbhc_find_plug_and_report(struct wcd_mbhc *mbhc,
+ }
+ EXPORT_SYMBOL(wcd_mbhc_find_plug_and_report);
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++static void wcd_enable_mbhc_supply(struct wcd_mbhc *mbhc,
++			enum wcd_mbhc_plug_type plug_type)
++{
++
++	struct snd_soc_codec *codec = mbhc->codec;
++
++	if (det_extn_cable_en && mbhc->is_extn_cable &&
++		mbhc->mbhc_cb && mbhc->mbhc_cb->extn_use_mb &&
++		mbhc->mbhc_cb->extn_use_mb(codec)) {
++		if (plug_type == MBHC_PLUG_TYPE_HEADPHONE ||
++		    plug_type == MBHC_PLUG_TYPE_HEADSET)
++			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
++	} else {
++		if (plug_type == MBHC_PLUG_TYPE_HEADSET) {
++			if (mbhc->is_hs_recording || mbhc->micbias_enable)
++				wcd_enable_curr_micbias(mbhc,
++							WCD_MBHC_EN_MB);
++			else if ((test_bit(WCD_MBHC_EVENT_PA_HPHL,
++				&mbhc->event_state)) ||
++				(test_bit(WCD_MBHC_EVENT_PA_HPHR,
++				&mbhc->event_state)))
++					wcd_enable_curr_micbias(mbhc,
++							WCD_MBHC_EN_PULLUP);
++			else
++#if 1
++				wcd_enable_curr_micbias(mbhc,
++							WCD_MBHC_EN_MB);
++#else
++				wcd_enable_curr_micbias(mbhc,
++							WCD_MBHC_EN_CS);
++#endif
++		} else if (plug_type == MBHC_PLUG_TYPE_HEADPHONE) {
++			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_CS);
++		} else {
++			printk("tsx_disable_bias\n");
++			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_NONE);
++		}
++	}
++}
++
++#endif
+ static void wcd_mbhc_swch_irq_handler(struct wcd_mbhc *mbhc)
+ {
+ 	bool detection_type = 0;
+@@ -945,7 +1045,15 @@ static void wcd_mbhc_swch_irq_handler(struct wcd_mbhc *mbhc)
+ 			jack_type = SND_JACK_LINEOUT;
+ 			break;
+ 		case MBHC_PLUG_TYPE_ANC_HEADPHONE:
+-			jack_type = SND_JACK_ANC_HEADPHONE;
++            jack_type = SND_JACK_ANC_HEADPHONE;
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++            mbhc->mbhc_cb->irq_control(codec,
++					mbhc->intr_ids->mbhc_hs_rem_intr,
++					false);
++			mbhc->mbhc_cb->irq_control(codec,
++					mbhc->intr_ids->mbhc_hs_ins_intr,
++					false);
++#endif
+ 			break;
+ 		default:
+ 			pr_info("%s: Invalid current plug: %d\n",
+@@ -1890,7 +1998,41 @@ int wcd_mbhc_init(struct wcd_mbhc *mbhc, struct snd_soc_codec *codec,
+ 		mbhc->moist_iref = hph_moist_config[1];
+ 		mbhc->moist_rref = hph_moist_config[2];
+ 	}
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	smg_enable_gpio = of_get_named_gpio(card->dev->of_node, "qcom,smg3711-enable-gpio",0);
++		 gpio_direction_output(smg_enable_gpio, 1);
++		 msleep(5);
++	pr_debug("%s: smg_enable_gpio_ = %d\n",__func__, smg_enable_gpio);
++	if (smg_enable_gpio <0) {
++		dev_err(card->dev,
++			"%s: missing %d in dt node\n", __func__, smg_enable_gpio);
++	}
+ 
++	if (gpio_is_valid(smg_enable_gpio)) {
++		if (gpio_request(smg_enable_gpio, "SMG3711_ENABLE")) {
++			pr_err("%s: Failed to request gpio %d\n",
++					__func__, smg_enable_gpio);
++		}
++		gpio_direction_output(smg_enable_gpio, 1);
++		msleep(5);
++	}
++	smg_in_gpio = of_get_named_gpio(card->dev->of_node, "qcom,smg3711-in-gpio",0);
++	pr_debug("%s: smg_in_gpio = %d\n",__func__, smg_in_gpio);
++	if (smg_in_gpio <0) {
++		dev_err(card->dev,
++			"%s: missing %d in dt node\n", __func__, smg_in_gpio);
++	}
++
++	if (gpio_is_valid(smg_in_gpio)) {
++		if (gpio_request(smg_in_gpio, "SMG3711_IN")) {
++			pr_err("%s: Failed to request gpio %d\n",
++					__func__, smg_in_gpio);
++		}
++		gpio_direction_output(smg_in_gpio, 1);
++		msleep(5);
++	}
++	pr_debug("headphone_en_gpio_value=%d,in_gpio_value=%d\n",gpio_get_value(smg_enable_gpio),gpio_get_value(smg_in_gpio));
++#endif
+ 	mbhc->in_swch_irq_handler = false;
+ 	mbhc->current_plug = MBHC_PLUG_TYPE_NONE;
+ 	mbhc->is_btn_press = false;
+diff --git a/techpack/audio/asoc/codecs/wcd-mbhc-v2.h b/techpack/audio/asoc/codecs/wcd-mbhc-v2.h
+index 94f096adcfbb..90e92c72cde4 100644
+--- a/techpack/audio/asoc/codecs/wcd-mbhc-v2.h
++++ b/techpack/audio/asoc/codecs/wcd-mbhc-v2.h
+@@ -153,6 +153,10 @@ do {                                                    \
+ #define WCD_MBHC_BTN_PRESS_COMPL_TIMEOUT_MS  50
+ #define ANC_DETECT_RETRY_CNT 7
+ #define WCD_MBHC_SPL_HS_CNT  1
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++#define PA_GPIO 1
++extern int smg_in_gpio;
++#endif
+ 
+ enum wcd_mbhc_detect_logic {
+ 	WCD_DETECTION_LEGACY,
+diff --git a/techpack/audio/asoc/codecs/wcd9xxx-common-v2.c b/techpack/audio/asoc/codecs/wcd9xxx-common-v2.c
+index 478c0c6d72e6..a85d550de07e 100644
+--- a/techpack/audio/asoc/codecs/wcd9xxx-common-v2.c
++++ b/techpack/audio/asoc/codecs/wcd9xxx-common-v2.c
+@@ -283,7 +283,11 @@ void wcd_clsh_imped_config(struct snd_soc_codec *codec, int imped, bool reset)
+ 		return;
+ 	}
+ 	index = get_impedance_index(imped);
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	if (index >= ARRAY_SIZE(imped_index)) {
++#else
+ 	if (index >= (ARRAY_SIZE(imped_index) - 1)) {
++#endif
+ 		pr_debug("%s, impedance not in range = %d\n", __func__, imped);
+ 		return;
+ 	}
+diff --git a/techpack/audio/asoc/msm-dai-fe.c b/techpack/audio/asoc/msm-dai-fe.c
+index 85bfaff76c6b..7d74e2829b7d 100644
+--- a/techpack/audio/asoc/msm-dai-fe.c
++++ b/techpack/audio/asoc/msm-dai-fe.c
+@@ -969,6 +969,40 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
+ 		.probe = fe_dai_probe,
+ 	},
+ 	/* TDM Hostless */
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++    {
++		.capture = {
++			.stream_name = "Quinary MI2S_TX Hostless Capture",
++			.aif_name = "QUIN_MI2S_UL_HL",
++			.rates = SNDRV_PCM_RATE_8000_48000,
++			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
++				    SNDRV_PCM_FMTBIT_S24_LE),
++			.channels_min = 1,
++			.channels_max = 2,
++			.rate_min = 8000,
++			.rate_max = 48000,
++		},
++		.ops = &msm_fe_dai_ops,
++		.name = "QUIN_MI2S_TX_HOSTLESS",
++		.probe = fe_dai_probe,
++	},
++	{
++	 .playback = {
++	 .stream_name = "Quinary MI2S_RX Hostless Playback",
++	 .aif_name = "QUIN_MI2S_DL_HL",
++	 .rates = SNDRV_PCM_RATE_8000_192000,
++	 .formats = SNDRV_PCM_FMTBIT_S16_LE |
++	 SNDRV_PCM_FMTBIT_S24_LE,
++	 .channels_min = 1,
++	 .channels_max = 8,
++	 .rate_min = 8000,
++	 .rate_max = 192000,
++	 },
++	 .ops = &msm_fe_dai_ops,
++	 .name = "QUIN_MI2S_RX_HOSTLESS",
++	 .probe = fe_dai_probe,
++	 },
++#endif
+ 	{
+ 		.capture = {
+ 			.stream_name = "Primary TDM0 Hostless Capture",
+diff --git a/techpack/audio/asoc/msm-pcm-routing-v2.c b/techpack/audio/asoc/msm-pcm-routing-v2.c
+index cf53230ab61c..84fd990fc800 100644
+--- a/techpack/audio/asoc/msm-pcm-routing-v2.c
++++ b/techpack/audio/asoc/msm-pcm-routing-v2.c
+@@ -14985,6 +14985,12 @@ static const struct snd_kcontrol_new quin_mi2s_rx_switch_mixer_controls =
+ 	0, 1, 0, msm_routing_get_quin_mi2s_switch_mixer,
+ 	msm_routing_put_quin_mi2s_switch_mixer);
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++static const struct snd_kcontrol_new quat_mi2s_fm_rx_switch_mixer_controls =
++	SOC_SINGLE_EXT("Switch", SND_SOC_NOPM,
++	0, 1, 0, msm_routing_get_quat_mi2s_switch_mixer,
++	msm_routing_put_quat_mi2s_switch_mixer);
++#endif
+ static const struct snd_kcontrol_new hfp_pri_aux_switch_mixer_controls =
+ 	SOC_SINGLE_EXT("Switch", SND_SOC_NOPM,
+ 	0, 1, 0, msm_routing_get_hfp_switch_mixer,
+@@ -16836,6 +16842,10 @@ static const struct snd_soc_dapm_widget msm_qdsp6_widgets[] = {
+ 				&quat_mi2s_rx_switch_mixer_controls),
+ 	SND_SOC_DAPM_SWITCH("QUIN_MI2S_RX_DL_HL", SND_SOC_NOPM, 0, 0,
+ 				&quin_mi2s_rx_switch_mixer_controls),
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	SND_SOC_DAPM_SWITCH("QUAT_MI2S_FM_RX_DL_HL", SND_SOC_NOPM, 0, 0,
++				&quat_mi2s_fm_rx_switch_mixer_controls),
++#endif
+ 	SND_SOC_DAPM_SWITCH("HFP_PRI_AUX_UL_HL", SND_SOC_NOPM, 0, 0,
+ 				&hfp_pri_aux_switch_mixer_controls),
+ 	SND_SOC_DAPM_SWITCH("HFP_AUX_UL_HL", SND_SOC_NOPM, 0, 0,
+@@ -19583,7 +19593,13 @@ static const struct snd_soc_dapm_route intercon[] = {
+ 	{"TERT_MI2S_RX", NULL, "TERT_MI2S_RX_DL_HL"},
+ 
+ 	{"QUAT_MI2S_RX_DL_HL", "Switch", "QUAT_MI2S_DL_HL"},
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++    {"QUAT_MI2S_FM_RX_DL_HL", "Switch", "PRI_MI2S_DL_HL"},
++#endif
+ 	{"QUAT_MI2S_RX", NULL, "QUAT_MI2S_RX_DL_HL"},
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++    {"QUAT_MI2S_RX", NULL, "QUAT_MI2S_FM_RX_DL_HL"},
++#endif
+ 	{"QUIN_MI2S_RX_DL_HL", "Switch", "QUIN_MI2S_DL_HL"},
+ 	{"QUIN_MI2S_RX", NULL, "QUIN_MI2S_RX_DL_HL"},
+ 	{"MI2S_UL_HL", NULL, "TERT_MI2S_TX"},
+diff --git a/techpack/audio/asoc/msm8952.c b/techpack/audio/asoc/msm8952.c
+index 9ab3c1651828..13f7ad700391 100644
+--- a/techpack/audio/asoc/msm8952.c
++++ b/techpack/audio/asoc/msm8952.c
+@@ -32,6 +32,10 @@
+ #include "codecs/msm-cdc-pinctrl.h"
+ #include "msm8952.h"
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++#include <linux/sched.h>
++#endif
++
+ #define DRV_NAME "msm8952-asoc-wcd"
+ 
+ #define MSM_INT_DIGITAL_CODEC "msm-dig-codec"
+@@ -74,6 +78,11 @@ static int msm8952_mclk_event(struct snd_soc_dapm_widget *w,
+ static int msm8952_wsa_switch_event(struct snd_soc_dapm_widget *w,
+ 			      struct snd_kcontrol *kcontrol, int event);
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++int msm_spk_ext_pa_ctrl(struct msm_asoc_mach_data *pdatadata, bool value);
++extern int msm_hs_ext_pa_ctrl(struct msm_asoc_mach_data *pdatadata, bool value);
++#endif
++
+ /*
+  * Android L spec
+  * Need to report LINEIN
+@@ -87,9 +96,15 @@ static struct wcd_mbhc_config mbhc_cfg = {
+ 	.swap_gnd_mic = NULL,
+ 	.hs_ext_micbias = false,
+ 	.key_code[0] = KEY_MEDIA,
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++    .key_code[1] = BTN_1,
++	.key_code[2] = BTN_2,
++	.key_code[3] = 0,
++#else
+ 	.key_code[1] = KEY_VOICECOMMAND,
+ 	.key_code[2] = KEY_VOLUMEUP,
+ 	.key_code[3] = KEY_VOLUMEDOWN,
++#endif
+ 	.key_code[4] = 0,
+ 	.key_code[5] = 0,
+ 	.key_code[6] = 0,
+@@ -139,6 +154,23 @@ static const char *const vi_feed_ch_text[] = {"One", "Two"};
+ static char const *mi2s_rx_sample_rate_text[] = {"KHZ_48",
+ 					"KHZ_96", "KHZ_192"};
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++struct cdc_pdm_pinctrl_info {
++	struct pinctrl *pinctrl;
++	struct pinctrl_state *cdc_lines_sus;
++	struct pinctrl_state *cdc_lines_act;
++	struct pinctrl_state *cross_conn_det_sus;
++	struct pinctrl_state *cross_conn_det_act;
++	struct pinctrl_state *spk_ext_pa_act;
++	struct pinctrl_state *spk_ext_pa_sus;
++	struct pinctrl_state *spk_rec_switch_act;
++	struct pinctrl_state *spk_rec_switch_sus;
++	struct pinctrl_state *spk_hs_switch_act;
++	struct pinctrl_state *spk_hs_switch_sus;
++};
++static struct cdc_pdm_pinctrl_info pinctrl_info;
++#endif
++
+ static inline int param_is_mask(int p)
+ {
+ 	return (p >= SNDRV_PCM_HW_PARAM_FIRST_MASK) &&
+@@ -366,6 +398,98 @@ static int enable_spk_ext_pa(struct snd_soc_codec *codec, int enable)
+ 	}
+ 	return 0;
+ }
++extern int msm_spk_ext_pa_ctrl(struct msm_asoc_mach_data *pdatadata, bool value);
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++int msm_spk_ext_pa_ctrl(struct msm_asoc_mach_data *pdatadata, bool value)
++{
++	struct msm_asoc_mach_data *pdata = pdatadata;
++	bool on_off = !value;
++	int ret = 0;
++
++	struct sched_param param;
++	int maxpri;
++
++	maxpri = MAX_USER_RT_PRIO - 1;
++	pr_debug("whl apk pa ctl -> high priorty start priorty = %d\n",maxpri);
++	param.sched_priority = maxpri;
++
++	if(sched_setscheduler(current,SCHED_FIFO,&param) == -1) {
++		pr_debug("whl sched_setscheduler failed\n");
++	}
++	pr_debug("whl apk pa ctl -> high priorty end\n");
++
++	pr_debug("%s, pa_is_on=%d,spk_ext_pa_gpio_lc=%d, on_off=%d\n", __func__, pdata->pa_is_on,pdata->spk_ext_pa_gpio_lc, on_off);
++	if (gpio_is_valid(pdata->spk_ext_pa_gpio_lc))
++	{
++		ret = msm_cdc_pinctrl_select_active_state(pdata->mi2s_gpio_p[PRIM_MI2S]);
++		if (ret) {
++			pr_err("%s: gpio set cannot be de-activated %s\n",
++					__func__, "pri_i2s");
++			return ret;
++		}
++		if (on_off) {
++			gpio_direction_output(pdata->spk_ext_pa_gpio_lc, 0);
++			mdelay(2);
++			pr_debug("111111 At %d In (%s),set pa\n",__LINE__, __FUNCTION__);
++			gpio_set_value(pdata->spk_ext_pa_gpio_lc, 0);
++			mdelay(2);
++			gpio_set_value(pdata->spk_ext_pa_gpio_lc, 1);
++
++			gpio_set_value(pdata->spk_ext_pa_gpio_lc, 0);
++
++			gpio_set_value(pdata->spk_ext_pa_gpio_lc, 1);
++
++			gpio_set_value(pdata->spk_ext_pa_gpio_lc, 0);
++
++			gpio_set_value(pdata->spk_ext_pa_gpio_lc, 1);
++			pr_debug("At %d In (%s),will delay\n",__LINE__, __FUNCTION__);
++			msleep(3);
++			printk("At %d In (%s),after open pa,spk_ext_pa_gpio_lc=%d\n",__LINE__, __FUNCTION__,gpio_get_value(pdata->spk_ext_pa_gpio_lc));
++
++		} else {
++
++			gpio_set_value(pdata->spk_ext_pa_gpio_lc, 0);
++			printk("At %d In (%s),after close pa,spk_ext_pa_gpio_lc=%d\n",__LINE__, __FUNCTION__,gpio_get_value(pdata->spk_ext_pa_gpio_lc));
++		}
++	} else {
++		pr_debug("%s, error\n", __func__);
++		ret = -EINVAL;
++	}
++
++	return ret;
++}
++
++static void msm_spk_ext_pa_delayed(struct work_struct *work)
++{
++	struct delayed_work *dwork;
++	struct msm_asoc_mach_data *pdata;
++
++	dwork = to_delayed_work(work);
++	pdata = container_of(dwork, struct msm_asoc_mach_data, pa_gpio_work);
++	pr_debug("At %d In (%s),enter,pdata->pa_is_on=%d\n",__LINE__, __FUNCTION__,pdata->pa_is_on);
++
++	if(pdata->pa_is_on == 0) {
++	pr_debug("At %d In (%s),open pa\n",__LINE__, __FUNCTION__);
++	msm_spk_ext_pa_ctrl(pdata, true);
++	pdata->pa_is_on = 2;
++	}
++}
++static void msm_hs_ext_pa_delayed(struct work_struct *work)
++{
++	struct delayed_work *dwork;
++	struct msm_asoc_mach_data *pdata;
++
++	dwork = to_delayed_work(work);
++	pdata = container_of(dwork, struct msm_asoc_mach_data, hs_gpio_work);
++	pr_debug("At %d In (%s),enter,pdata->hs_is_on=%d\n",__LINE__, __FUNCTION__,pdata->hs_is_on);
++
++	if(pdata->hs_is_on == 0) {
++	pr_debug("At %d In (%s),open pa\n",__LINE__, __FUNCTION__);
++	msm_hs_ext_pa_ctrl(pdata, true);
++	pdata->hs_is_on = 2;
++	}
++}
++#endif
+ 
+ static bool msm8952_swap_gnd_mic(struct snd_soc_codec *codec, bool active)
+ {
+@@ -1517,7 +1641,11 @@ static void *def_msm8952_wcd_mbhc_cal(void)
+ 		return NULL;
+ 
+ #define S(X, Y) ((WCD_MBHC_CAL_PLUG_TYPE_PTR(msm8952_wcd_cal)->X) = (Y))
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++    S(v_hs_max, 1600);		/*increase vref for more headphone compatibility*/
++#else
+ 	S(v_hs_max, 1500);
++#endif
+ #undef S
+ #define S(X, Y) ((WCD_MBHC_CAL_BTN_DET_PTR(msm8952_wcd_cal)->X) = (Y))
+ 	S(num_btn, WCD_MBHC_DEF_BUTTONS);
+@@ -1540,6 +1668,16 @@ static void *def_msm8952_wcd_mbhc_cal(void)
+ 	 * 210-290 == Button 2
+ 	 * 360-680 == Button 3
+ 	 */
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	btn_low[0] = 100;
++	btn_high[0] = 100;
++    btn_low[1] = 200;
++	btn_high[1] = 200;
++	btn_low[2] = 450;
++	btn_high[2] = 450;
++	btn_low[3] = 500;
++	btn_high[3] = 500;
++#else
+ 	btn_low[0] = 75;
+ 	btn_high[0] = 75;
+ 	btn_low[1] = 150;
+@@ -1548,6 +1686,7 @@ static void *def_msm8952_wcd_mbhc_cal(void)
+ 	btn_high[2] = 225;
+ 	btn_low[3] = 450;
+ 	btn_high[3] = 450;
++#endif
+ 	btn_low[4] = 500;
+ 	btn_high[4] = 500;
+ 
+@@ -2794,6 +2933,100 @@ static void msm8952_dt_parse_cap_info(struct platform_device *pdev,
+ 		 MICBIAS_EXT_BYP_CAP : MICBIAS_NO_EXT_BYP_CAP);
+ }
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++static int msm_setup_spk_ext_pa(struct platform_device *pdev, struct msm_asoc_mach_data *pdata)
++{
++	struct pinctrl *pinctrl;
++	int ret;
++
++	pdata->spk_ext_pa_gpio_lc = of_get_named_gpio_flags(pdev->dev.of_node, "qcom,spk_ext_pa",
++				0, NULL);
++	if (pdata->spk_ext_pa_gpio_lc < 0) {
++		pr_debug("%s, spk_ext_pa_gpio_lc not exist!\n", __func__);
++	} else {
++		pr_debug("%s, spk_ext_pa_gpio_lc=%d\n", __func__, pdata->spk_ext_pa_gpio_lc);
++		pinctrl = devm_pinctrl_get(&pdev->dev);
++		if (IS_ERR(pinctrl)) {
++			pr_err("%s: Unable to get pinctrl handle\n", __func__);
++			return -EINVAL;
++		}
++		pinctrl_info.pinctrl = pinctrl;
++		pinctrl_info.spk_ext_pa_act = pinctrl_lookup_state(pinctrl, "spk_ext_pa_act");
++		if (IS_ERR(pinctrl_info.spk_ext_pa_act)) {
++			pr_err("%s: Unable to get pinctrl disable handle\n", __func__);
++			return -EINVAL;
++		}
++		pinctrl_info.spk_ext_pa_sus = pinctrl_lookup_state(pinctrl, "spk_ext_pa_sus");
++		if (IS_ERR(pinctrl_info.spk_ext_pa_sus)) {
++			pr_err("%s: Unable to get pinctrl active handle\n", __func__);
++			return -EINVAL;
++		}
++		if (gpio_is_valid(pdata->spk_ext_pa_gpio_lc)) {
++			pr_debug("%s, spk_ext_pa_gpio_lc request\n", __func__);
++			ret = gpio_request(pdata->spk_ext_pa_gpio_lc, "ext/PA-GPIO");
++			if (ret != 0) {
++				pr_debug("Failed to request /ext/PA-GPIO: %d\n", ret);
++				return -EINVAL;
++			}
++			pr_debug("At %d In (%s),set spk_ext_pa_gpio_lc to low\n",__LINE__, __FUNCTION__);
++			gpio_direction_output(pdata->spk_ext_pa_gpio_lc, 0);
++			mdelay(2);
++			gpio_set_value(pdata->spk_ext_pa_gpio_lc, 0);
++
++
++		}
++
++	}
++	return 0;
++}
++static int msm_setup_hs_ext_pa(struct platform_device *pdev, struct msm_asoc_mach_data *pdata)
++{
++	struct pinctrl *pinctrl;
++	int ret;
++
++	pdata->spk_hs_switch_gpio = of_get_named_gpio_flags(pdev->dev.of_node, "qcom,spk_hs_switch",
++				0, NULL);
++	if (pdata->spk_hs_switch_gpio < 0) {
++		pr_debug("%s, spk_ext_pa_gpio_lc not exist!\n", __func__);
++	} else {
++		pr_debug("%s, spk_ext_pa_gpio_lc=%d\n", __func__, pdata->spk_ext_pa_gpio_lc);
++		pinctrl = devm_pinctrl_get(&pdev->dev);
++		if (IS_ERR(pinctrl)) {
++			pr_err("%s: Unable to get pinctrl handle\n", __func__);
++			return -EINVAL;
++		}
++		pinctrl_info.pinctrl = pinctrl;
++
++		 /* get pinctrl handle for spk_hs_switch_gpio */
++		pinctrl_info.spk_hs_switch_act = pinctrl_lookup_state(pinctrl, "spk_hs_switch_act");
++		if (IS_ERR(pinctrl_info.spk_hs_switch_act)) {
++			pr_err("%s: Unable to get pinctrl disable handle\n", __func__);
++			return -EINVAL;
++		}
++		pinctrl_info.spk_hs_switch_sus = pinctrl_lookup_state(pinctrl, "spk_hs_switch_sus");
++		if (IS_ERR(pinctrl_info.spk_hs_switch_sus)) {
++			pr_err("%s: Unable to get pinctrl active handle\n", __func__);
++			return -EINVAL;
++		}
++
++		 if (gpio_is_valid(pdata->spk_hs_switch_gpio)) {
++			pr_debug("%s, spk_hs_switch_gpio request\n", __func__);
++			ret = gpio_request(pdata->spk_hs_switch_gpio, "ext/spk_hs_switch-GPIO");
++			if (ret != 0) {
++				pr_debug("Failed to request /ext/spk_hs_switch-GPIO: %d\n", ret);
++				return -EINVAL;
++			}
++			gpio_direction_output(pdata->spk_hs_switch_gpio, 0);
++			pr_debug("At %d In (%s),set spk_hs_switch_gpio to high\n",__LINE__, __FUNCTION__);
++			gpio_set_value_cansleep(pdata->spk_hs_switch_gpio, 0);
++			msleep(5);
++		}
++	}
++	return 0;
++}
++
++#endif
++
+ static int msm8952_populate_dai_link_component_of_node(
+ 		struct snd_soc_card *card)
+ {
+@@ -3014,19 +3247,24 @@ static int msm8952_asoc_machine_probe(struct platform_device *pdev)
+ 	const char *hs_micbias_type = "qcom,msm-hs-micbias-type";
+ 	const char *ext_pa = "qcom,msm-ext-pa";
+ 	const char *mclk = "qcom,msm-mclk-freq";
++#ifndef CONFIG_MACH_XIAOMI_ULYSSE
+ 	const char *wsa = "asoc-wsa-codec-names";
++#endif
+ 	const char *type = NULL;
+-	const char *ext_pa_str = NULL;
+-	const char *spk_ext_pa = "qcom,msm-spk-ext-pa";
++    const char *ext_pa_str = NULL;
++    const char *spk_ext_pa = "qcom,msm-spk-ext-pa";
++
+ 	int num_strings;
+ 	int id, i, val;
+ 	int ret = 0;
+ 	struct resource *muxsel;
+ #if IS_ENABLED(CONFIG_SND_SOC_WSA881X_ANALOG)
++#ifndef CONFIG_MACH_XIAOMI_ULYSSE
+ 	const char *wsa_prefix = "asoc-wsa-codec-prefixes";
+ 	const char *wsa_str = NULL;
+ 	const char *wsa_prefix_str = NULL;
+ 	char *temp_str = NULL;
++#endif
+ #endif
+ 
+ 	pdata = devm_kzalloc(&pdev->dev,
+@@ -3105,10 +3343,11 @@ static int msm8952_asoc_machine_probe(struct platform_device *pdev)
+ 		id = DEFAULT_MCLK_RATE;
+ 	}
+ 	pdata->mclk_freq = id;
+-
++#ifndef CONFIG_MACH_XIAOMI_ULYSSE
+ 	/*reading the gpio configurations from dtsi file*/
+ 	num_strings = of_property_count_strings(pdev->dev.of_node,
+ 			wsa);
++
+ #if IS_ENABLED(CONFIG_SND_SOC_WSA881X_ANALOG)
+ 	if (num_strings > 0) {
+ 		if (wsa881x_get_probing_count() < 2) {
+@@ -3175,6 +3414,7 @@ static int msm8952_asoc_machine_probe(struct platform_device *pdev)
+ 			msm_anlg_cdc_update_int_spk_boost(false);
+ 		}
+ 	}
++#endif
+ #endif
+ 
+ 	card = msm8952_populate_sndcard_dailinks(&pdev->dev);
+@@ -3288,6 +3528,18 @@ static int msm8952_asoc_machine_probe(struct platform_device *pdev)
+ 	/* Initialize loopback mode to false */
+ 	pdata->lb_mode = false;
+ 	msm8952_dt_parse_cap_info(pdev, pdata);
++    
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	pr_debug("At %d In (%s),will run msm8x16_setup_spk_ext_pa\n",__LINE__, __FUNCTION__);
++	ret = msm_setup_spk_ext_pa(pdev, pdata);
++	if (ret)
++		pr_debug("%s, msm8x16_setup_spk_ext_pa error!\n", __func__);
++
++	pr_debug("At %d In (%s),will run msm8x16_setup_hs_ext_pa\n",__LINE__, __FUNCTION__);
++	ret = msm_setup_hs_ext_pa(pdev, pdata);
++	if (ret)
++		pr_debug("%s, msm8x16_setup_hs_ext_pa error!\n", __func__);
++#endif
+ 
+ 	card->dev = &pdev->dev;
+ 	platform_set_drvdata(pdev, card);
+@@ -3297,6 +3549,10 @@ static int msm8952_asoc_machine_probe(struct platform_device *pdev)
+ 		goto err;
+ 	/* initialize timer */
+ 	INIT_DELAYED_WORK(&pdata->disable_int_mclk0_work, msm8952_disable_mclk);
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	INIT_DELAYED_WORK(&pdata->pa_gpio_work, msm_spk_ext_pa_delayed);
++	INIT_DELAYED_WORK(&pdata->hs_gpio_work, msm_hs_ext_pa_delayed);
++#endif
+ 	mutex_init(&pdata->cdc_int_mclk0_mutex);
+ 	atomic_set(&pdata->int_mclk0_rsc_ref, 0);
+ 	if (card->aux_dev) {
+diff --git a/techpack/audio/asoc/msm8952.h b/techpack/audio/asoc/msm8952.h
+index 3fb55cc2af47..ba120f718764 100644
+--- a/techpack/audio/asoc/msm8952.h
++++ b/techpack/audio/asoc/msm8952.h
+@@ -62,6 +62,16 @@ struct msm_asoc_mach_data {
+ 	int ext_pa;
+ 	int us_euro_gpio;
+ 	int spk_ext_pa_gpio;
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	int spk_ext_pa_gpio_lc;
++	int spk_hs_switch_gpio;
++	struct delayed_work pa_gpio_work;
++	struct delayed_work pa_gpio_work_close;
++	struct delayed_work hs_gpio_work;
++	unsigned char pa_is_on;
++	unsigned char hs_is_on;
++	const char *spk_pa_name;
++#endif
+ 	int mclk_freq;
+ 	bool native_clk_set;
+ 	int lb_mode;
+-- 
+2.20.1
+

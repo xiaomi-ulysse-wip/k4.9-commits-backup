@@ -1,0 +1,175 @@
+From 6c574409ebc431fe0c7fc3f069ba39afec38cc2e Mon Sep 17 00:00:00 2001
+From: Albert I <kras@raphielgang.org>
+Date: Wed, 20 May 2020 10:39:17 +0800
+Subject: [PATCH 45/71] msm/camera_v2-legacy: Update indentations to fix
+ compiler warnings
+
+GCC 6+ and Clang 11+ warn whenever indentations are considered misleading
+especially when they think that codes are misinterpreted as if being guarded
+by conditions above them.
+
+Signed-off-by: Albert I <kras@raphielgang.org>
+---
+ .../msm/camera_v2-legacy/isp/msm_isp32.c      | 24 ++++---------------
+ .../msm/camera_v2-legacy/isp/msm_isp40.c      | 24 ++++---------------
+ .../msm/camera_v2-legacy/isp/msm_isp44.c      |  3 ++-
+ 3 files changed, 12 insertions(+), 39 deletions(-)
+
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp32.c b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp32.c
+index 7a16e335dd28..3af8fe38664d 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp32.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp32.c
+@@ -89,8 +89,6 @@ static int32_t msm_vfe32_init_qos_parms(struct vfe_device *vfe_dev,
+ 			qos_regs, qos_entries);
+ 		if (rc < 0) {
+ 			pr_err("%s: NO QOS BUS BDG info\n", __func__);
+-			kfree(qos_settings);
+-			kfree(qos_regs);
+ 		} else {
+ 			if (qos_parms->settings) {
+ 				rc = of_property_read_u32_array(of_node,
+@@ -99,20 +97,15 @@ static int32_t msm_vfe32_init_qos_parms(struct vfe_device *vfe_dev,
+ 				if (rc < 0) {
+ 					pr_err("%s: NO QOS settings\n",
+ 						__func__);
+-					kfree(qos_settings);
+-					kfree(qos_regs);
+ 				} else {
+ 					for (i = 0; i < qos_entries; i++)
+ 						msm_camera_io_w(qos_settings[i],
+ 							vfebase + qos_regs[i]);
+-					kfree(qos_settings);
+-					kfree(qos_regs);
+ 				}
+-			} else {
+-				kfree(qos_settings);
+-				kfree(qos_regs);
+ 			}
+ 		}
++		kfree(qos_settings);
++		kfree(qos_regs);
+ 	}
+ 	rc = of_property_read_u32(of_node, ds_parms->entries,
+ 		&ds_entries);
+@@ -136,8 +129,6 @@ static int32_t msm_vfe32_init_qos_parms(struct vfe_device *vfe_dev,
+ 			ds_regs, ds_entries);
+ 		if (rc < 0) {
+ 			pr_err("%s: NO D/S register info\n", __func__);
+-			kfree(ds_settings);
+-			kfree(ds_regs);
+ 		} else {
+ 			if (ds_parms->settings) {
+ 				rc = of_property_read_u32_array(of_node,
+@@ -146,20 +137,15 @@ static int32_t msm_vfe32_init_qos_parms(struct vfe_device *vfe_dev,
+ 				if (rc < 0) {
+ 					pr_err("%s: NO D/S settings\n",
+ 						__func__);
+-					kfree(ds_settings);
+-					kfree(ds_regs);
+-	} else {
++				} else {
+ 					for (i = 0; i < ds_entries; i++)
+ 						msm_camera_io_w(ds_settings[i],
+ 							vfebase + ds_regs[i]);
+-						kfree(ds_regs);
+-						kfree(ds_settings);
+ 				}
+-			} else {
+-				kfree(ds_regs);
+-				kfree(ds_settings);
+ 			}
+ 		}
++		kfree(ds_settings);
++		kfree(ds_regs);
+ 	}
+ 	return 0;
+ }
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp40.c b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp40.c
+index 9597321e7bae..437fd514ba50 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp40.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp40.c
+@@ -169,8 +169,6 @@ static int32_t msm_vfe40_init_qos_parms(struct vfe_device *vfe_dev,
+ 			qos_regs, qos_entries);
+ 		if (rc < 0) {
+ 			pr_err("%s: NO QOS BUS BDG info\n", __func__);
+-			kfree(qos_settings);
+-			kfree(qos_regs);
+ 		} else {
+ 			if (qos_parms->settings) {
+ 				rc = of_property_read_u32_array(of_node,
+@@ -179,20 +177,15 @@ static int32_t msm_vfe40_init_qos_parms(struct vfe_device *vfe_dev,
+ 				if (rc < 0) {
+ 					pr_err("%s: NO QOS settings\n",
+ 						__func__);
+-					kfree(qos_settings);
+-					kfree(qos_regs);
+ 				} else {
+ 					for (i = 0; i < qos_entries; i++)
+ 						msm_camera_io_w(qos_settings[i],
+ 							vfebase + qos_regs[i]);
+-					kfree(qos_settings);
+-					kfree(qos_regs);
+ 				}
+-			} else {
+-				kfree(qos_settings);
+-				kfree(qos_regs);
+ 			}
+ 		}
++		kfree(qos_settings);
++		kfree(qos_regs);
+ 	}
+ 	rc = of_property_read_u32(of_node, ds_parms->entries,
+ 		&ds_entries);
+@@ -216,8 +209,6 @@ static int32_t msm_vfe40_init_qos_parms(struct vfe_device *vfe_dev,
+ 			ds_regs, ds_entries);
+ 		if (rc < 0) {
+ 			pr_err("%s: NO D/S register info\n", __func__);
+-			kfree(ds_settings);
+-			kfree(ds_regs);
+ 		} else {
+ 			if (ds_parms->settings) {
+ 				rc = of_property_read_u32_array(of_node,
+@@ -226,20 +217,15 @@ static int32_t msm_vfe40_init_qos_parms(struct vfe_device *vfe_dev,
+ 				if (rc < 0) {
+ 					pr_err("%s: NO D/S settings\n",
+ 						__func__);
+-					kfree(ds_settings);
+-					kfree(ds_regs);
+-	} else {
++				} else {
+ 					for (i = 0; i < ds_entries; i++)
+ 						msm_camera_io_w(ds_settings[i],
+ 							vfebase + ds_regs[i]);
+-						kfree(ds_regs);
+-						kfree(ds_settings);
+ 				}
+-			} else {
+-				kfree(ds_regs);
+-				kfree(ds_settings);
+ 			}
+ 		}
++		kfree(ds_settings);
++		kfree(ds_regs);
+ 	}
+ 	return 0;
+ }
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp44.c b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp44.c
+index eec59d454130..8d7ea548c65b 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp44.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp44.c
+@@ -521,10 +521,11 @@ static void msm_vfe44_process_epoch_irq(struct vfe_device *vfe_dev,
+ 			pix_stream_count == 0) {
+ 			ISP_DBG("%s: SOF IRQ\n", __func__);
+ 			msm_isp_notify(vfe_dev, ISP_EVENT_SOF, VFE_PIX_0, ts);
+-			if (vfe_dev->axi_data.stream_update[VFE_PIX_0])
++			if (vfe_dev->axi_data.stream_update[VFE_PIX_0]) {
+ 				msm_isp_axi_stream_update(vfe_dev, VFE_PIX_0);
+ 				vfe_dev->hw_info->vfe_ops.core_ops.reg_update(
+ 				   vfe_dev, VFE_PIX_0);
++			}
+ 		}
+ 	}
+ }
+-- 
+2.20.1
+

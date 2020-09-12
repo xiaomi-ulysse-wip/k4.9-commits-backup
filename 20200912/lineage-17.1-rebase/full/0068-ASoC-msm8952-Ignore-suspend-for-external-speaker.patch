@@ -1,0 +1,27 @@
+From 94f01f545dc7fb27112b13e7411da70e1029e6c2 Mon Sep 17 00:00:00 2001
+From: Artem Borisov <dedsa2002@gmail.com>
+Date: Sat, 17 Nov 2018 13:01:58 +0400
+Subject: [PATCH 68/71] ASoC: msm8952: Ignore suspend for external speaker
+
+Our devices are using external speaker path for headphones.
+
+Change-Id: I6d0199af3d996e6eda40772ad76d01eb3fddc7f4
+---
+ techpack/audio/asoc/msm8952.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/techpack/audio/asoc/msm8952.c b/techpack/audio/asoc/msm8952.c
+index 13f7ad700391..eacbb213b9c6 100644
+--- a/techpack/audio/asoc/msm8952.c
++++ b/techpack/audio/asoc/msm8952.c
+@@ -1723,6 +1723,7 @@ static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
+ 	snd_soc_dapm_ignore_suspend(dapm, "DMIC2");
+ 	snd_soc_dapm_ignore_suspend(dapm, "WSA_SPK OUT");
+ 	snd_soc_dapm_ignore_suspend(dapm, "LINEOUT");
++	snd_soc_dapm_ignore_suspend(dapm, "Ext Spk");
+ 
+ 	snd_soc_dapm_sync(dapm);
+ 
+-- 
+2.20.1
+

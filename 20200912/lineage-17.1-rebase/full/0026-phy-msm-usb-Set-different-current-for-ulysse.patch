@@ -1,0 +1,28 @@
+From 1a7ab03efddd1f292fa938d716cd948b974f0f37 Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Fri, 24 Jul 2020 18:00:30 +0800
+Subject: [PATCH 26/71] phy-msm-usb: Set different current for ulysse
+
+---
+ drivers/usb/phy/phy-msm-usb.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/drivers/usb/phy/phy-msm-usb.c b/drivers/usb/phy/phy-msm-usb.c
+index c9366c5f0104..eca0884b6581 100644
+--- a/drivers/usb/phy/phy-msm-usb.c
++++ b/drivers/usb/phy/phy-msm-usb.c
+@@ -116,7 +116,11 @@ enum msm_usb_phy_type {
+ 	QUSB_ULPI_PHY,
+ };
+ 
++#ifndef CONFIG_MACH_XIAOMI_ULYSSE
+ #define IDEV_CHG_MAX	1500
++#else
++#define IDEV_CHG_MAX	2000
++#endif
+ #define IUNIT		100
+ #define IDEV_HVDCP_CHG_MAX	1800
+ 
+-- 
+2.20.1
+

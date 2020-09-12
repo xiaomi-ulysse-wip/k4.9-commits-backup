@@ -1,0 +1,57 @@
+From b3a9f2071381db6439e5cd42caeea629331a9665 Mon Sep 17 00:00:00 2001
+From: Sultanxda <sultanxda@gmail.com>
+Date: Tue, 21 Mar 2017 15:29:57 -0700
+Subject: [PATCH 57/71] msm: camera: sensor: Fix memory leaks when sensor probe
+ fails
+
+The power settings for a camera sensor can be parsed and have its memory
+never freed in the error path if part of the probe sequence fails after
+the power settings are parsed.
+
+Free the power settings in the error paths to fix the memory leaks.
+
+Signed-off-by: Sultanxda <sultanxda@gmail.com>
+Signed-off-by: Francisco Franco <franciscofranco.1990@gmail.com>
+Signed-off-by: MOVZX <movzx@yahoo.com>
+---
+ .../msm/camera_v2-legacy/sensor/msm_sensor_driver.c    | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor_driver.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor_driver.c
+index ce71a15fe253..da25ab01f97c 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor_driver.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor_driver.c
+@@ -600,6 +600,7 @@ static int32_t msm_sensor_get_power_settings(void *setting,
+ 		power_info);
+ 	if (rc < 0) {
+ 		pr_err("failed");
++		kfree(power_info->power_setting);
+ 		return -EINVAL;
+ 	}
+ 	return rc;
+@@ -1350,8 +1351,10 @@ int32_t msm_sensor_driver_probe(void *setting,
+ 
+ 
+ 	camera_info = kzalloc(sizeof(struct msm_camera_slave_info), GFP_KERNEL);
+-	if (!camera_info)
+-		goto free_slave_info;
++	if (!camera_info) {
++		pr_err("failed: no memory slave_info %pK", camera_info);
++		goto free_power_settings;
++	}
+ 
+ 	s_ctrl->sensordata->slave_info = camera_info;
+ 
+@@ -1522,6 +1525,9 @@ int32_t msm_sensor_driver_probe(void *setting,
+ 	s_ctrl->func_tbl->sensor_power_down(s_ctrl);
+ free_camera_info:
+ 	kfree(camera_info);
++free_power_settings:
++	kfree(s_ctrl->sensordata->power_info.power_setting);
++	kfree(s_ctrl->sensordata->power_info.power_down_setting);
+ free_slave_info:
+ 	kfree(slave_info);
+ 	return rc;
+-- 
+2.20.1
+

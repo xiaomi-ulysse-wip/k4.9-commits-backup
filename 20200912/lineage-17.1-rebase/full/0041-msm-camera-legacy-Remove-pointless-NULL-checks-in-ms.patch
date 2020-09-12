@@ -1,0 +1,52 @@
+From fee2a913a50a427993d3cc0e38aeefa824f79aec Mon Sep 17 00:00:00 2001
+From: Nathan Chancellor <natechancellor@gmail.com>
+Date: Thu, 26 Sep 2019 22:36:25 -0700
+Subject: [PATCH 41/71] msm: camera-legacy: Remove pointless NULL checks in
+ msm_camera_{get,put}_clk_info
+
+Clang warns:
+
+../drivers/media/platform/msm/camera_v2-legacy/common/cam_soc_api.c:207:23:
+warning: address of 'pdev->dev' will always evaluate to 'true'
+[-Wpointer-bool-conversion]
+        if (!pdev || !&pdev->dev || !clk_info || !clk_ptr || !num_clk)
+                     ~ ~~~~~~^~~
+../drivers/media/platform/msm/camera_v2-legacy/common/cam_soc_api.c:499:23:
+warning: address of 'pdev->dev' will always evaluate to 'true'
+[-Wpointer-bool-conversion]
+        if (!pdev || !&pdev->dev || !clk_info || !clk_ptr)
+                     ~ ~~~~~~^~~
+2 warnings generated.
+
+Fixes: dad83ca9a3f6 ("msm: camera: sensor: Updating soc layer clock API for i2c drivers")
+Signed-off-by: Nathan Chancellor <natechancellor@gmail.com>
+Signed-off-by: Albert I <kras@raphielgang.org>
+---
+ .../media/platform/msm/camera_v2-legacy/common/cam_soc_api.c  | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/common/cam_soc_api.c b/drivers/media/platform/msm/camera_v2-legacy/common/cam_soc_api.c
+index 2ffeb5234887..ac1d3f60f7ab 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/common/cam_soc_api.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/common/cam_soc_api.c
+@@ -204,7 +204,7 @@ int msm_camera_get_clk_info(struct platform_device *pdev,
+ {
+ 	int rc = 0;
+ 
+-	if (!pdev || !&pdev->dev || !clk_info || !clk_ptr || !num_clk)
++	if (!pdev || !clk_info || !clk_ptr || !num_clk)
+ 		return -EINVAL;
+ 
+ 	rc = msm_camera_get_clk_info_internal(&pdev->dev,
+@@ -496,7 +496,7 @@ int msm_camera_put_clk_info(struct platform_device *pdev,
+ {
+ 	int rc = 0;
+ 
+-	if (!pdev || !&pdev->dev || !clk_info || !clk_ptr)
++	if (!pdev || !clk_info || !clk_ptr)
+ 		return -EINVAL;
+ 
+ 	rc = msm_camera_put_clk_info_internal(&pdev->dev,
+-- 
+2.20.1
+

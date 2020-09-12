@@ -1,0 +1,46 @@
+From 8df13865ce3927cabe847f4cefb116bf86f0131e Mon Sep 17 00:00:00 2001
+From: Trevor Bunker <trevorbunker@google.com>
+Date: Tue, 15 Aug 2017 10:30:34 -0700
+Subject: [PATCH 51/71] media: msm: camera_v2-legacy: add newline after a few
+ prints
+
+Change-Id: I836d78b5f4066a36b44fca820ce161202ccd23aa
+Signed-off-by: Trevor Bunker <trevorbunker@google.com>
+Signed-off-by: Lau <laststandrighthere@gmail.com>
+Signed-off-by: Albert I <kras@raphielgang.org>
+---
+ drivers/media/platform/msm/camera_v2-legacy/msm.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/msm.c b/drivers/media/platform/msm/camera_v2-legacy/msm.c
+index c2c8f88bed80..8eefbdca3690 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/msm.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/msm.c
+@@ -219,7 +219,7 @@ static inline int __msm_queue_find_command_ack_q(void *d1, void *d2)
+ 
+ static inline void msm_pm_qos_add_request(void)
+ {
+-	pr_info("%s: add request", __func__);
++	pr_info("%s: add request\n", __func__);
+ 	if (atomic_cmpxchg(&qos_add_request_done, 0, 1))
+ 		return;
+ 	pm_qos_add_request(&msm_v4l2_pm_qos_request, PM_QOS_CPU_DMA_LATENCY,
+@@ -228,13 +228,13 @@ static inline void msm_pm_qos_add_request(void)
+ 
+ static void msm_pm_qos_remove_request(void)
+ {
+-	pr_info("%s: remove request", __func__);
++	pr_info("%s: remove request\n", __func__);
+ 	pm_qos_remove_request(&msm_v4l2_pm_qos_request);
+ }
+ 
+ void msm_pm_qos_update_request(int val)
+ {
+-	pr_info("%s: update request %d", __func__, val);
++	pr_info("%s: update request %d\n", __func__, val);
+ 	msm_pm_qos_add_request();
+ 	pm_qos_update_request(&msm_v4l2_pm_qos_request, val);
+ }
+-- 
+2.20.1
+
