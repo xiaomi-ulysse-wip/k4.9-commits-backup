@@ -1,0 +1,26 @@
+From c46b18fc7fa179ee68aa70753aeac3d8deb416f1 Mon Sep 17 00:00:00 2001
+From: "R. Adi Permana" <romadhonadipermana279f@gmail.com>
+Date: Thu, 17 Sep 2020 08:33:00 +0000
+Subject: [PATCH 094/100] drivers: fingerprint: fpc1020: Fix compile
+
+Change regulator_set_optimum_mode to regulator_set_load to fix build error
+---
+ drivers/input/fingerprint/fpc_ugg/fpc1020_tee.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/input/fingerprint/fpc_ugg/fpc1020_tee.c b/drivers/input/fingerprint/fpc_ugg/fpc1020_tee.c
+index 4442de98a620..5f9a70346d9a 100644
+--- a/drivers/input/fingerprint/fpc_ugg/fpc1020_tee.c
++++ b/drivers/input/fingerprint/fpc_ugg/fpc1020_tee.c
+@@ -129,7 +129,7 @@ static int vreg_setup(struct fpc1020_data *fpc1020, const char *name,
+ 					name, rc);
+ 		}
+ 
+-		rc = regulator_set_optimum_mode(vreg, vreg_conf[i].ua_load);
++		rc = regulator_set_load(vreg, vreg_conf[i].ua_load);
+ 		if (rc < 0)
+ 			dev_err(dev, "Unable to set current on %s, %d\n",
+ 					name, rc);
+-- 
+2.20.1
+

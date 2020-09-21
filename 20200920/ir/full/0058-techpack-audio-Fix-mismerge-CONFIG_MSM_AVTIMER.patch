@@ -1,0 +1,25 @@
+From 5dea4a3b72d0bad5ef37f86c62c4dcde45e3ba0d Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Tue, 25 Aug 2020 05:22:03 +0800
+Subject: [PATCH 58/88] techpack: audio: Fix mismerge CONFIG_MSM_AVTIMER
+
+---
+ techpack/audio/dsp/avtimer.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/techpack/audio/dsp/avtimer.c b/techpack/audio/dsp/avtimer.c
+index 63eefe781131..2694971d2b6c 100644
+--- a/techpack/audio/dsp/avtimer.c
++++ b/techpack/audio/dsp/avtimer.c
+@@ -25,7 +25,7 @@
+ #include <linux/of.h>
+ #include <linux/wait.h>
+ #include <linux/sched.h>
+-#if IS_ENABLED(CONFIG_AVTIMER_LEGACY)
++#if IS_ENABLED(CONFIG_MSM_AVTIMER)
+ #ifndef CONFIG_MSMB_CAMERA_LEGACY
+ #include <media/msmb_isp.h>
+ #else
+-- 
+2.20.1
+

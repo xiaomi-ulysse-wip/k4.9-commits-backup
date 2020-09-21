@@ -1,0 +1,192 @@
+From 18b23b3ac3aca3f247d3c33049355ee2d99f9102 Mon Sep 17 00:00:00 2001
+From: "R. Adi Permana" <romadhonadipermana279f@gmail.com>
+Date: Sat, 15 Aug 2020 15:34:49 +0700
+Subject: [PATCH 003/100] ARM64: dts: ulysse: Adapt to 4.9
+
+Co-authored-by: MrArtemSid <artem.sid.key@gmail.com>
+---
+ .../dts/qcom/msm8917-pmi8937-mtp-ugglite.dts  |  6 ++++--
+ .../boot/dts/qcom/msm8940-pmi8937-mtp-ugg.dts |  4 +++-
+ arch/arm64/boot/dts/qcom/ugg/ugg-camera.dtsi  | 12 +++++------
+ .../boot/dts/qcom/ugglite/ugglite-camera.dtsi | 20 +++++++++----------
+ .../dts/qcom/ulysse-common/common-audio.dtsi  |  7 ++-----
+ .../dts/qcom/ulysse-common/common-mtp.dtsi    |  4 ++--
+ 6 files changed, 27 insertions(+), 26 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/msm8917-pmi8937-mtp-ugglite.dts b/arch/arm64/boot/dts/qcom/msm8917-pmi8937-mtp-ugglite.dts
+index 1130e3202a96..0ad6b9b589cf 100644
+--- a/arch/arm64/boot/dts/qcom/msm8917-pmi8937-mtp-ugglite.dts
++++ b/arch/arm64/boot/dts/qcom/msm8917-pmi8937-mtp-ugglite.dts
+@@ -15,8 +15,10 @@
+ /dts-v1/;
+ 
+ #include "msm8917.dtsi"
+-#include "msm8917-pmi8937-mtp.dtsi"
+-#include "msm8937-regulator.dtsi"
++#include "msm8917-pmi8937.dtsi"
++#include "msm8917-mtp.dtsi"
++#include "msm8917-audio.dtsi"
++#include "msm8953-wsa881x.dtsi"
+ #include "ulysse-common/common.dtsi"
+ #include "ugglite/ugglite-msm8917.dtsi"
+ 
+diff --git a/arch/arm64/boot/dts/qcom/msm8940-pmi8937-mtp-ugg.dts b/arch/arm64/boot/dts/qcom/msm8940-pmi8937-mtp-ugg.dts
+index 90a078309021..4e6c71f7ba34 100644
+--- a/arch/arm64/boot/dts/qcom/msm8940-pmi8937-mtp-ugg.dts
++++ b/arch/arm64/boot/dts/qcom/msm8940-pmi8937-mtp-ugg.dts
+@@ -15,7 +15,9 @@
+  /dts-v1/;
+ 
+ #include "msm8940.dtsi"
+-#include "msm8940-pmi8937-mtp.dtsi"
++#include "msm8940-pmi8937.dtsi"
++#include "msm8937-mtp.dtsi"
++#include "msm8937-audio.dtsi"
+ #include "ulysse-common/common.dtsi"
+ #include "ugg/ugg-msm8940.dtsi"
+ 
+diff --git a/arch/arm64/boot/dts/qcom/ugg/ugg-camera.dtsi b/arch/arm64/boot/dts/qcom/ugg/ugg-camera.dtsi
+index c7f1899f0cf3..8068334f4d5a 100644
+--- a/arch/arm64/boot/dts/qcom/ugg/ugg-camera.dtsi
++++ b/arch/arm64/boot/dts/qcom/ugg/ugg-camera.dtsi
+@@ -113,8 +113,8 @@
+ 		qcom,cam-vreg-op-mode = <100000 0 800000 800000>;
+ 		pinctrl-names = "cam_default", "cam_suspend";
+ 		pinctrl-0 = <&cam_sensor_mclk0_default
+-				&cam_sensor_rear_default>;
+-		pinctrl-1 = <&cam_sensor_mclk0_sleep &cam_sensor_rear_sleep>;
++				&cam_sensor_rear_reset>;
++		pinctrl-1 = <&cam_sensor_mclk0_sleep &cam_sensor_rear_reset_sleep>;
+ 		gpios = <&tlmm 26 0>,
+ 			<&tlmm 36 0>,
+ 			<&tlmm 35 0>;
+@@ -182,8 +182,8 @@
+ 		/delete-property/ qcom,gpio-no-mux;
+ 		pinctrl-names = "cam_default", "cam_suspend";
+ 		pinctrl-0 = <&cam_sensor_mclk0_default
+-				&cam_sensor_rear_default>;
+-		pinctrl-1 = <&cam_sensor_mclk0_sleep &cam_sensor_rear_sleep>;
++				&cam_sensor_rear_reset>;
++		pinctrl-1 = <&cam_sensor_mclk0_sleep &cam_sensor_rear_reset_sleep>;
+ 		gpios = <&tlmm 26 0>,
+ 			<&tlmm 36 0>,
+ 			<&tlmm 35 0>;
+@@ -322,8 +322,8 @@
+ 		qcom,cam-vreg-op-mode = <100000 0 800000 800000>;
+ 		pinctrl-names = "cam_default", "cam_suspend";
+ 		pinctrl-0 = <&cam_sensor_mclk0_default
+-		&cam_sensor_rear_default>;
+-		pinctrl-1 = <&cam_sensor_mclk0_sleep &cam_sensor_rear_sleep>;
++		&cam_sensor_rear_reset>;
++		pinctrl-1 = <&cam_sensor_mclk0_sleep &cam_sensor_rear_reset_sleep>;
+ 		gpios = <&tlmm 26 0>,
+ 			<&tlmm 36 0>,
+ 			<&tlmm 35 0>;
+diff --git a/arch/arm64/boot/dts/qcom/ugglite/ugglite-camera.dtsi b/arch/arm64/boot/dts/qcom/ugglite/ugglite-camera.dtsi
+index 2ee07d0b535d..af034514fd9e 100644
+--- a/arch/arm64/boot/dts/qcom/ugglite/ugglite-camera.dtsi
++++ b/arch/arm64/boot/dts/qcom/ugglite/ugglite-camera.dtsi
+@@ -180,7 +180,7 @@
+ 		qcom,poll26 = <0 0x0 2 0 1 1>;
+ 		qcom,mem26 = <39 0x0A04 2 0 1 0>;
+ 
+-		cam_vio-supply = <&pm8917_l6>;
++		cam_vio-supply = <&pm8937_l6>;
+ 		qcom,cam-vreg-name = "cam_vdig", "cam_vio", "cam_vana";
+ 		qcom,cam-vreg-min-voltage = <1200000 0 2850000>;
+ 		qcom,cam-vreg-max-voltage = <1200000 0 2850000>;
+@@ -358,10 +358,10 @@
+ 		qcom,poll26 = <0 0x0 2 0 1 1>;
+ 		qcom,mem26 = <25 0x0A04 2 0 1 0>;
+ 
+-		cam_vdig-supply = <&pm8917_l23>;
+-		cam_vio-supply = <&pm8917_l6>;
++		cam_vdig-supply = <&pm8937_l23>;
++		cam_vio-supply = <&pm8937_l6>;
+ 		/delete-property/ cam_vaf-supply;
+-		cam_vana-supply = <&pm8917_l22>;
++		cam_vana-supply = <&pm8937_l22>;
+ 		qcom,cam-vreg-name = "cam_vdig", "cam_vio", "cam_vana";
+ 		qcom,cam-vreg-min-voltage = <1200000 0 2850000>;
+ 		qcom,cam-vreg-max-voltage = <1200000 0 2850000>;
+@@ -409,10 +409,10 @@
+ 		qcom,poll0 = <0 0x0 2 0x0 1 0>;
+ 		qcom,mem0 = <4641 0x0 2 0x0 1 0>;
+ 
+-		cam_vdig-supply = <&pm8917_l23>;
+-		cam_vana-supply = <&pm8917_l22>;
+-		cam_vio-supply = <&pm8917_l6>;
+-		cam_vaf-supply = <&pm8917_l17>;
++		cam_vdig-supply = <&pm8937_l23>;
++		cam_vana-supply = <&pm8937_l22>;
++		cam_vio-supply = <&pm8937_l6>;
++		cam_vaf-supply = <&pm8937_l17>;
+ 		qcom,cam-vreg-name = "cam_vdig","cam_vio", "cam_vana","cam_vaf";
+ 		qcom,cam-vreg-min-voltage = <1200000 0 2850000 2850000>;
+ 		qcom,cam-vreg-max-voltage = <1200000 0 2850000 2850000>;
+@@ -446,7 +446,7 @@
+ 	qcom,camera@0 {
+ 		qcom,led-flash-src = <&led_flash>;
+ 		qcom,eeprom-src = <&eeprom0 &eeprom3>;
+-		cam_vdig-supply = <&pm8917_l23>;
++		cam_vdig-supply = <&pm8937_l23>;
+ 		qcom,cam-vreg-name = "cam_vdig", "cam_vio", "cam_vana","cam_vaf";
+ 		qcom,cam-vreg-min-voltage = <1200000 0 2850000 2850000>;
+ 		qcom,cam-vreg-max-voltage = <1200000 0 2850000 2850000>;
+@@ -470,7 +470,7 @@
+ 		qcom,eeprom-src = <&eeprom1 &eeprom2>;
+ 		/delete-property/ cam_vana-supply;
+ 		/delete-property/ cam_vaf-supply;
+-		cam_vana-supply = <&pm8917_l22>;
++		cam_vana-supply = <&pm8937_l22>;
+ 		qcom,cam-vreg-name = "cam_vdig", "cam_vio", "cam_vana";
+ 		qcom,cam-vreg-min-voltage = <1200000 0 2850000>;
+ 		qcom,cam-vreg-max-voltage = <1200000 0 2850000>;
+diff --git a/arch/arm64/boot/dts/qcom/ulysse-common/common-audio.dtsi b/arch/arm64/boot/dts/qcom/ulysse-common/common-audio.dtsi
+index 00870732791d..71ddf6ccf437 100644
+--- a/arch/arm64/boot/dts/qcom/ulysse-common/common-audio.dtsi
++++ b/arch/arm64/boot/dts/qcom/ulysse-common/common-audio.dtsi
+@@ -57,8 +57,8 @@
+ 		"AMIC1", "MIC BIAS External",
+ 		"AMIC2", "MIC BIAS External2",
+ 		"AMIC3", "MIC BIAS External";
+-	asoc-codec = <&stub_codec>, <&pm8937_cajon_dig>, <&hdmi_dba>;
+-	asoc-codec-names = "msm-stub-codec.1", "cajon_codec",
++	asoc-codec = <&stub_codec>, <&msm_digital_codec>, <&hdmi_dba>;
++	asoc-codec-names = "msm-stub-codec.1",
+ 			"msm-hdmi-dba-codec-rx";
+ };
+ 
+@@ -70,9 +70,6 @@
+ 	/delete-property/ pinctrl-2;
+ 	/delete-property/ pinctrl-3;
+ };
+-&wsa881x_i2c_e {
+-	status = "disable";
+-};
+ 
+ &wsa881x_i2c_f {
+ 	status = "disable";
+diff --git a/arch/arm64/boot/dts/qcom/ulysse-common/common-mtp.dtsi b/arch/arm64/boot/dts/qcom/ulysse-common/common-mtp.dtsi
+index ede047dd0728..a84ee7566b48 100644
+--- a/arch/arm64/boot/dts/qcom/ulysse-common/common-mtp.dtsi
++++ b/arch/arm64/boot/dts/qcom/ulysse-common/common-mtp.dtsi
+@@ -41,7 +41,7 @@
+ 		qcom,qsee-ce-hw-instance = <0>;
+ 		qcom,disk-encrypt-pipe-pair = <2>;
+ 		qcom,support-fde;
+-		qcom,appsbl-qseecom-support;
++		qcom,commonlib64-loaded-by-uefi;
+ 		qcom,msm-bus,name = "qseecom-noc";
+ 		qcom,msm-bus,num-cases = <4>;
+ 		qcom,msm-bus,num-paths = <1>;
+@@ -78,4 +78,4 @@
+ 
+ &i2c_2 {
+ 	status = "ok";
+-};
+\ No newline at end of file
++};
+-- 
+2.20.1
+

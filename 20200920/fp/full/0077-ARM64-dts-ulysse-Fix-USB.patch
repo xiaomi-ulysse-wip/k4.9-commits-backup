@@ -1,0 +1,28 @@
+From df1d5d710313892e94d452260d7f6cb6cb9edd30 Mon Sep 17 00:00:00 2001
+From: "R. Adi Permana" <romadhonadipermana279f@gmail.com>
+Date: Tue, 25 Aug 2020 00:29:36 +0700
+Subject: [PATCH 077/100] ARM64: dts: ulysse: Fix USB
+
+Added extcon property
+---
+ arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi b/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi
+index 728ce60839a1..fe442e9af8f6 100644
+--- a/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi
++++ b/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi
+@@ -59,6 +59,10 @@
+ 	};
+ };
+ 
++&usb_otg {
++	extcon = <&bq2560x_otg_supply>;
++};
++
+ &apps_iommu {
+ 	qcom,no-aarch64;
+ };
+-- 
+2.20.1
+

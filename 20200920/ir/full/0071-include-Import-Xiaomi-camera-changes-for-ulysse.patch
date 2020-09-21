@@ -1,0 +1,115 @@
+From d1b0b09e97323e9d5e5f5eb05177356f00aab241 Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Wed, 26 Aug 2020 01:03:33 +0800
+Subject: [PATCH 71/88] include: Import Xiaomi camera changes for ulysse
+
+---
+ include/soc/qcom/camera2-legacy.h             | 30 +++++++++++++++++++
+ include/uapi/media/msm_cam_sensor-legacy.h    |  4 +++
+ include/uapi/media/msm_camera-legacy.h        |  3 ++
+ include/uapi/media/msm_camsensor_sdk-legacy.h |  6 ++++
+ 4 files changed, 43 insertions(+)
+
+diff --git a/include/soc/qcom/camera2-legacy.h b/include/soc/qcom/camera2-legacy.h
+index 9c6783001cd1..ece3c4b2922e 100644
+--- a/include/soc/qcom/camera2-legacy.h
++++ b/include/soc/qcom/camera2-legacy.h
+@@ -1,4 +1,5 @@
+ /* Copyright (c) 2011-2017, The Linux Foundation. All rights reserved.
++ * Copyright (C) 2018 XiaoMi, Inc.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License version 2 and
+@@ -20,6 +21,35 @@
+ #include <linux/of_device.h>
+ #include <linux/of.h>
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++enum __camera_vendor_module_id{
++	MID_NULL = 0,
++	MID_SUNNY,
++	MID_TRULY,
++	MID_A_KERR,
++	MID_LITEARRAY,
++	MID_DARLING,
++	MID_QTECH,
++	MID_OFILM,
++	MID_HUAQUAN,
++	MID_KINGCOM = MID_HUAQUAN,
++	MID_BOOYI,
++	MID_LAIMU,
++	MID_D3 = 0x0d,
++	MID_D6 = 0x0e,
++	MID_WDSEN,
++	MID_SUNRISE,
++	MID_PRIMAX = 0x17,
++	MID_MAX
++};
++typedef enum __camera_vendor_module_id camera_vendor_module_id;
++
++struct vendor_eeprom{
++	char eeprom_name[128];
++	uint8_t module_id;
++};
++#define CAMERA_VENDOR_EEPROM_COUNT_MAX		6
++#endif
+ 
+ enum msm_camera_device_type_t {
+ 	MSM_CAMERA_I2C_DEVICE,
+diff --git a/include/uapi/media/msm_cam_sensor-legacy.h b/include/uapi/media/msm_cam_sensor-legacy.h
+index f9d5fef42312..2c2a7afe6e07 100644
+--- a/include/uapi/media/msm_cam_sensor-legacy.h
++++ b/include/uapi/media/msm_cam_sensor-legacy.h
+@@ -18,7 +18,11 @@
+ 
+ #define MAX_OIS_MOD_NAME_SIZE 32
+ #define MAX_OIS_NAME_SIZE 32
++#ifndef CONFIG_MACH_XIAOMI_ULYSSE
+ #define MAX_OIS_REG_SETTINGS 800
++#else
++#define MAX_OIS_REG_SETTINGS 2000
++#endif
+ 
+ #define MOVE_NEAR 0
+ #define MOVE_FAR  1
+diff --git a/include/uapi/media/msm_camera-legacy.h b/include/uapi/media/msm_camera-legacy.h
+index 10ee4b7c9390..84a84610eb57 100644
+--- a/include/uapi/media/msm_camera-legacy.h
++++ b/include/uapi/media/msm_camera-legacy.h
+@@ -1592,6 +1592,9 @@ enum msm_camera_vreg_name_t {
+ 	CAM_VANA,
+ 	CAM_VAF,
+ 	CAM_VREG_MAX,
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	CAM_DRV,
++#endif
+ };
+ 
+ struct msm_camera_csi_lane_params {
+diff --git a/include/uapi/media/msm_camsensor_sdk-legacy.h b/include/uapi/media/msm_camsensor_sdk-legacy.h
+index 83927c614e91..fea32b48f49a 100644
+--- a/include/uapi/media/msm_camsensor_sdk-legacy.h
++++ b/include/uapi/media/msm_camsensor_sdk-legacy.h
+@@ -107,6 +107,9 @@ enum msm_sensor_power_seq_gpio_t {
+ 	SENSOR_GPIO_VIO,
+ 	SENSOR_GPIO_VANA,
+ 	SENSOR_GPIO_VDIG,
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	SENSOR_GPIO_DRV,
++#endif
+ 	SENSOR_GPIO_VAF,
+ 	SENSOR_GPIO_FL_EN,
+ 	SENSOR_GPIO_FL_NOW,
+@@ -133,6 +136,9 @@ enum msm_camera_vreg_name_t {
+ 	CAM_V_CUSTOM1,
+ 	CAM_V_CUSTOM2,
+ 	CAM_VREG_MAX,
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	CAM_DRV,
++#endif
+ };
+ 
+ enum msm_sensor_clk_type_t {
+-- 
+2.20.1
+

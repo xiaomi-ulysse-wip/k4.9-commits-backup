@@ -1,0 +1,34 @@
+From 779846308b4f47f0a763d34ea1a22cb1fae96622 Mon Sep 17 00:00:00 2001
+From: Artem Borisov <dedsa2002@gmail.com>
+Date: Sun, 28 Oct 2018 18:57:32 +0400
+Subject: [PATCH 024/100] leds: msm-gpio-flash: Use regulator_set_load
+
+---
+ drivers/leds/leds-msm-gpio-flash.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/leds/leds-msm-gpio-flash.c b/drivers/leds/leds-msm-gpio-flash.c
+index f94bb9c08966..e69e1dff3c4c 100644
+--- a/drivers/leds/leds-msm-gpio-flash.c
++++ b/drivers/leds/leds-msm-gpio-flash.c
+@@ -226,7 +226,7 @@ static int led_gpio_flash_probe(struct platform_device *pdev)
+ 					__func__, D3_PM8953_L22);
+ 				goto vreg_set_voltage_fail;
+ 		}
+-		rc = regulator_set_optimum_mode(reg_ptr, U_OPT_VOLTAGE);
++		rc = regulator_set_load(reg_ptr, U_OPT_VOLTAGE);
+ 		if (rc < 0) {
+ 				pr_err("lct %s: %s set optimum mode failed\n",
+ 					__func__, D3_PM8953_L22);
+@@ -358,7 +358,7 @@ static int led_gpio_flash_probe(struct platform_device *pdev)
+ 
+ vreg_unconfig:
+ 	if (regulator_count_voltages(reg_ptr) > 0)
+-		regulator_set_optimum_mode(reg_ptr, 0);
++		regulator_set_load(reg_ptr, 0);
+ 
+ vreg_set_opt_mode_fail:
+ 	if (regulator_count_voltages(reg_ptr) > 0)
+-- 
+2.20.1
+

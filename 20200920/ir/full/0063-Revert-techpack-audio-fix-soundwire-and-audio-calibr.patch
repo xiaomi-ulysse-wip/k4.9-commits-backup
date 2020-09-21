@@ -1,0 +1,100 @@
+From a09650396b65597443805447f792d2ca6ca9cd5f Mon Sep 17 00:00:00 2001
+From: anonymous <anonymous>
+Date: Wed, 26 Aug 2020 14:18:05 +0000
+Subject: [PATCH 63/88] Revert "techpack/audio: fix soundwire and audio
+ calibration init if !MODULES"
+
+This reverts commit b862fc1ec612f3277184163a8fcba16427c0bff7.
+---
+ techpack/audio/dsp/audio_calibration.c | 16 +---------------
+ techpack/audio/dsp/q6_init.c           |  4 ----
+ techpack/audio/soc/soundwire.c         |  4 ----
+ 3 files changed, 1 insertion(+), 23 deletions(-)
+
+diff --git a/techpack/audio/dsp/audio_calibration.c b/techpack/audio/dsp/audio_calibration.c
+index aa11d5af5d13..c895fa788315 100644
+--- a/techpack/audio/dsp/audio_calibration.c
++++ b/techpack/audio/dsp/audio_calibration.c
+@@ -593,9 +593,6 @@ struct miscdevice audio_cal_misc = {
+ 	.fops	= &audio_cal_fops,
+ };
+ 
+-#ifndef MODULE
+-static
+-#endif
+ int __init audio_cal_init(void)
+ {
+ 	int i = 0;
+@@ -612,12 +609,7 @@ int __init audio_cal_init(void)
+ 	return misc_register(&audio_cal_misc);
+ }
+ 
+-#ifdef MODULE
+-void
+-#else
+-static void __exit
+-#endif
+-audio_cal_exit(void)
++void audio_cal_exit(void)
+ {
+ 	int i = 0;
+ 	struct list_head *ptr, *next;
+@@ -635,15 +627,9 @@ audio_cal_exit(void)
+ 			client_info_node = NULL;
+ 		}
+ 	}
+-#ifdef MODULE
+ 	misc_deregister(&audio_cal_misc);
+-#endif
+ }
+ 
+-#ifndef MODULE
+-subsys_initcall(audio_cal_init);
+-module_exit(audio_cal_exit);
+-#endif
+ 
+ MODULE_DESCRIPTION("SoC QDSP6v2 Audio Calibration driver");
+ MODULE_LICENSE("GPL v2");
+diff --git a/techpack/audio/dsp/q6_init.c b/techpack/audio/dsp/q6_init.c
+index b48b59869e41..3b885dcb9095 100644
+--- a/techpack/audio/dsp/q6_init.c
++++ b/techpack/audio/dsp/q6_init.c
+@@ -19,9 +19,7 @@ GNU General Public License for more details.
+ static int __init audio_q6_init(void)
+ {
+ 	adsp_err_init();
+-#ifdef MODULE
+ 	audio_cal_init();
+-#endif
+ 	rtac_init();
+ 	adm_init();
+ 	afe_init();
+@@ -47,9 +45,7 @@ static void __exit audio_q6_exit(void)
+ 	afe_exit();
+ 	adm_exit();
+ 	rtac_exit();
+-#ifdef MODULE
+ 	audio_cal_exit();
+-#endif
+ 	adsp_err_exit();
+ }
+ 
+diff --git a/techpack/audio/soc/soundwire.c b/techpack/audio/soc/soundwire.c
+index d2688b59bc51..69a9ed478183 100644
+--- a/techpack/audio/soc/soundwire.c
++++ b/techpack/audio/soc/soundwire.c
+@@ -1026,11 +1026,7 @@ static int __init soundwire_init(void)
+ 
+ 	return retval;
+ }
+-#ifdef MODULE
+ module_init(soundwire_init);
+-#else
+-postcore_initcall(soundwire_init);
+-#endif
+ module_exit(soundwire_exit);
+ 
+ 
+-- 
+2.20.1
+

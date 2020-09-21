@@ -1,0 +1,35 @@
+From ef106b446ca4f618caf83d3a5969ffd461daab50 Mon Sep 17 00:00:00 2001
+From: Albert I <kras@raphielgang.org>
+Date: Thu, 30 Apr 2020 23:50:29 +0800
+Subject: [PATCH 46/88] techpack/audio: dsp/avtimer: Include legacy camera
+ header when requested
+
+Currently there's no difference between two, but just in case it'll change in
+the future.
+
+Signed-off-by: Albert I <kras@raphielgang.org>
+---
+ techpack/audio/dsp/avtimer.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/techpack/audio/dsp/avtimer.c b/techpack/audio/dsp/avtimer.c
+index 632248d1996a..63eefe781131 100644
+--- a/techpack/audio/dsp/avtimer.c
++++ b/techpack/audio/dsp/avtimer.c
+@@ -25,8 +25,12 @@
+ #include <linux/of.h>
+ #include <linux/wait.h>
+ #include <linux/sched.h>
+-#if IS_ENABLED(CONFIG_MSM_AVTIMER)
++#if IS_ENABLED(CONFIG_AVTIMER_LEGACY)
++#ifndef CONFIG_MSMB_CAMERA_LEGACY
+ #include <media/msmb_isp.h>
++#else
++#include <media/msmb_isp-legacy.h>
++#endif
+ #endif
+ #include <ipc/apr.h>
+ #include <dsp/q6core.h>
+-- 
+2.20.1
+

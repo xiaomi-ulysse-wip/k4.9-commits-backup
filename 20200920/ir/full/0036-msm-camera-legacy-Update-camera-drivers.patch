@@ -1,0 +1,1698 @@
+From 237b9f786090ca344ee7a5afa94e330d0ffa15f5 Mon Sep 17 00:00:00 2001
+From: Lakshmi Narayana Kalavala <lkalaval@codeaurora.org>
+Date: Mon, 8 Feb 2016 17:31:03 -0800
+Subject: [PATCH 36/88] msm: camera-legacy: Update camera drivers
+
+Add changes to update camera drivers to:
+
+1. Update necessary Kconfig files to support camera driver
+   compilation.
+2. Support minor changes to V4L framework.
+3. Export uapi headers to header_install export location.
+
+Signed-off-by: Seemanta Dutta <seemanta@codeaurora.org>
+Signed-off-by: Lakshmi Narayana Kalavala <lkalaval@codeaurora.org>
+
+Edit: Quallenauge: Adapted for 3.18 camera import.
+[kras: merge conflicts and fix build]
+Signed-off-by: Albert I <kras@raphielgang.org>
+---
+ .../platform/msm/camera_v2-legacy/Kconfig     |   2 +-
+ .../msm/camera_v2-legacy/camera/camera.c      |   8 +-
+ .../camera_v2-legacy/common/cam_smmu_api.c    |  18 +--
+ .../camera_v2-legacy/common/cam_smmu_api.h    |   1 -
+ .../common/msm_camera_io_util.c               |  15 +--
+ .../msm/camera_v2-legacy/fd/msm_fd_dev.c      |  25 ++--
+ .../msm/camera_v2-legacy/fd/msm_fd_dev.h      |   2 +-
+ .../msm/camera_v2-legacy/fd/msm_fd_hw.c       |  10 +-
+ .../msm/camera_v2-legacy/isp/msm_buf_mgr.c    |  56 ++++-----
+ .../msm/camera_v2-legacy/isp/msm_buf_mgr.h    |   2 +-
+ .../msm/camera_v2-legacy/isp/msm_isp.c        |   4 +-
+ .../msm/camera_v2-legacy/isp/msm_isp.h        |   1 -
+ .../msm/camera_v2-legacy/isp/msm_isp47.c      |   2 +
+ .../camera_v2-legacy/isp/msm_isp_axi_util.c   |  63 +++++++---
+ .../camera_v2-legacy/isp/msm_isp_axi_util.h   |   2 +
+ .../msm/camera_v2-legacy/isp/msm_isp_util.c   |   2 +-
+ .../msm/camera_v2-legacy/ispif/msm_ispif.c    |   3 +-
+ .../jpeg_10/msm_jpeg_platform.c               |   1 -
+ .../jpeg_dma/msm_jpeg_dma_dev.c               |  35 +++---
+ .../media/platform/msm/camera_v2-legacy/msm.c |  12 +-
+ .../msm_buf_mgr/msm_generic_buf_mgr.c         |  41 +++---
+ .../msm_buf_mgr/msm_generic_buf_mgr.h         |   2 +-
+ .../platform/msm/camera_v2-legacy/msm_sd.h    |   8 +-
+ .../msm/camera_v2-legacy/msm_vb2/msm_vb2.c    | 117 ++++++++++--------
+ .../msm/camera_v2-legacy/msm_vb2/msm_vb2.h    |   3 +-
+ .../msm/camera_v2-legacy/pproc/cpp/msm_cpp.c  |   3 +-
+ .../sensor/actuator/msm_actuator.c            |   6 +-
+ .../camera_v2-legacy/sensor/csid/msm_csid.c   |   3 +-
+ .../sensor/csiphy/msm_csiphy.c                |   3 +-
+ .../sensor/eeprom/msm_eeprom.c                |   9 +-
+ .../camera_v2-legacy/sensor/flash/msm_flash.c |   6 +-
+ .../sensor/flash/msm_led_flash.c              |   6 +-
+ .../sensor/ir_cut/msm_ir_cut.c                |   3 +-
+ .../sensor/ir_led/msm_ir_led.c                |   3 +-
+ .../msm/camera_v2-legacy/sensor/msm_sensor.c  |  17 ---
+ .../sensor/msm_sensor_driver.c                |  15 ++-
+ .../camera_v2-legacy/sensor/msm_sensor_init.c |   3 +-
+ .../msm/camera_v2-legacy/sensor/ois/msm_ois.c |   6 +-
+ include/media/msmb_isp-legacy.h               |   8 ++
+ include/soc/qcom/camera2-legacy.h             |   2 +-
+ 40 files changed, 273 insertions(+), 255 deletions(-)
+
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/Kconfig b/drivers/media/platform/msm/camera_v2-legacy/Kconfig
+index 673d60cb5a6f..f185b8d36b57 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/Kconfig
++++ b/drivers/media/platform/msm/camera_v2-legacy/Kconfig
+@@ -222,7 +222,7 @@ config MSM_V4L2_VIDEO_OVERLAY_DEVICE
+ 
+ config MSMB_JPEG
+ 	tristate "QTI MSM Jpeg Encoder Engine support"
+-        depends on MSMB_CAMERA && (ARCH_MSM8974 || ARCH_MSM8226 || ARCH_APQ8084 || ARCH_MSM8916 || ARCH_MSM8953 || ARCH_MSM)
++        depends on MSMB_CAMERA && (ARCH_MSM8974 || ARCH_MSM8226 || ARCH_APQ8084 || ARCH_MSM8916 || ARCH_MSM8953 || ARCH_QCOM)
+ 	---help---
+ 	  Enable support for Jpeg Encoder/Decoder
+ 	  Engine for 8974.
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/camera/camera.c b/drivers/media/platform/msm/camera_v2-legacy/camera/camera.c
+index cdd433cda81c..9fd53fc333ce 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/camera/camera.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/camera/camera.c
+@@ -27,6 +27,7 @@
+ #include <linux/iommu.h>
+ #include <linux/platform_device.h>
+ #include <media/v4l2-fh.h>
++#include <media/videobuf2-v4l2.h>
+ 
+ #include "camera.h"
+ #include "msm.h"
+@@ -615,7 +616,6 @@ static int camera_v4l2_vb2_q_init(struct file *filep)
+ 	/* default queue type */
+ 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+ 	q->io_modes = VB2_USERPTR;
+-	q->io_flags = 0;
+ 	q->buf_struct_size = sizeof(struct msm_vb2_buffer);
+ 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+ 	return vb2_queue_init(q);
+@@ -869,7 +869,7 @@ static struct v4l2_file_operations camera_v4l2_fops = {
+ 	.open	= camera_v4l2_open,
+ 	.poll	= camera_v4l2_poll,
+ 	.release = camera_v4l2_close,
+-	.ioctl   = video_ioctl2,
++	.unlocked_ioctl   = video_ioctl2,
+ #ifdef CONFIG_COMPAT
+ 	.compat_ioctl32 = camera_v4l2_compat_ioctl,
+ #endif
+@@ -907,6 +907,7 @@ int camera_init_v4l2(struct device *dev, unsigned int *session)
+ 		rc = -ENOMEM;
+ 		goto mdev_fail;
+ 	}
++	media_device_init(v4l2_dev->mdev);
+ 	strlcpy(v4l2_dev->mdev->model, MSM_CAMERA_NAME,
+ 			sizeof(v4l2_dev->mdev->model));
+ 
+@@ -916,10 +917,9 @@ int camera_init_v4l2(struct device *dev, unsigned int *session)
+ 	if (WARN_ON(rc < 0))
+ 		goto media_fail;
+ 
+-	rc = media_entity_init(&pvdev->vdev->entity, 0, NULL, 0);
++	rc = media_entity_pads_init(&pvdev->vdev->entity, 0, NULL);
+ 	if (WARN_ON(rc < 0))
+ 		goto entity_fail;
+-	pvdev->vdev->entity.type = MEDIA_ENT_T_DEVNODE_V4L;
+ 	pvdev->vdev->entity.group_id = QCAMERA_VNODE_GROUP_ID;
+ #endif
+ 
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/common/cam_smmu_api.c b/drivers/media/platform/msm/camera_v2-legacy/common/cam_smmu_api.c
+index e062980006e7..40b7968a5c74 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/common/cam_smmu_api.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/common/cam_smmu_api.c
+@@ -15,11 +15,9 @@
+ #include <linux/dma-buf.h>
+ #include <asm/dma-iommu.h>
+ #include <linux/dma-direction.h>
+-#include <linux/dma-attrs.h>
+ #include <linux/of_platform.h>
+ #include <linux/iommu.h>
+ #include <linux/slab.h>
+-#include <linux/qcom_iommu.h>
+ #include <linux/dma-mapping.h>
+ #include <linux/msm_dma_iommu_mapping.h>
+ #include <linux/workqueue.h>
+@@ -1462,7 +1460,7 @@ static int cam_smmu_setup_cb(struct cam_context_bank_info *cb,
+ 	}
+ 
+ 	/* create a virtual mapping */
+-	cb->mapping = arm_iommu_create_mapping(msm_iommu_get_bus(dev),
++	cb->mapping = arm_iommu_create_mapping(&platform_bus_type,
+ 		cb->va_start, cb->va_len);
+ 	if (IS_ERR(cb->mapping)) {
+ 		pr_err("Error: create mapping Failed\n");
+@@ -1564,18 +1562,12 @@ static int cam_populate_smmu_context_banks(struct device *dev,
+ 
+ 	/* set up the iommu mapping for the  context bank */
+ 	if (type == CAM_QSMMU) {
+-		ctx = msm_iommu_get_ctx(cb->name);
+-		if (IS_ERR_OR_NULL(ctx)) {
+-			rc = PTR_ERR(ctx);
+-			pr_err("Invalid pointer of ctx : %s rc = %d\n",
+-				 cb->name, rc);
+-			return -EINVAL;
+-		}
+-		CDBG("getting QSMMU ctx : %s\n", cb->name);
+-	} else {
++		pr_err("Error: QSMMU ctx not supported for: %s\n", cb->name);
++		return -EINVAL;
++	}
+ 		ctx = dev;
+ 		CDBG("getting Arm SMMU ctx : %s\n", cb->name);
+-	}
++
+ 	rc = cam_smmu_setup_cb(cb, ctx);
+ 	if (rc < 0)
+ 		pr_err("Error: failed to setup cb : %s\n", cb->name);
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/common/cam_smmu_api.h b/drivers/media/platform/msm/camera_v2-legacy/common/cam_smmu_api.h
+index 59d085989a9c..b0a8e64a401b 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/common/cam_smmu_api.h
++++ b/drivers/media/platform/msm/camera_v2-legacy/common/cam_smmu_api.h
+@@ -17,7 +17,6 @@
+ #include <linux/dma-buf.h>
+ #include <asm/dma-iommu.h>
+ #include <linux/dma-direction.h>
+-#include <linux/dma-attrs.h>
+ #include <linux/of_platform.h>
+ #include <linux/iommu.h>
+ #include <linux/random.h>
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/common/msm_camera_io_util.c b/drivers/media/platform/msm/camera_v2-legacy/common/msm_camera_io_util.c
+index e46073652f89..30e1955ca367 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/common/msm_camera_io_util.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/common/msm_camera_io_util.c
+@@ -436,9 +436,10 @@ int msm_camera_config_vreg(struct device *dev, struct camera_vreg_t *cam_vreg,
+ 					goto vreg_set_voltage_fail;
+ 				}
+ 				if (curr_vreg->op_mode >= 0) {
+-					rc = regulator_set_optimum_mode(
++					rc = regulator_set_load(
+ 						reg_ptr[j],
+ 						curr_vreg->op_mode);
++					//TODO: ??? rc = 0;
+ 					if (rc < 0) {
+ 						pr_err(
+ 						"%s:%s set optimum mode fail\n",
+@@ -461,8 +462,8 @@ int msm_camera_config_vreg(struct device *dev, struct camera_vreg_t *cam_vreg,
+ 			if (reg_ptr[j]) {
+ 				if (regulator_count_voltages(reg_ptr[j]) > 0) {
+ 					if (curr_vreg->op_mode >= 0) {
+-						regulator_set_optimum_mode(
+-							reg_ptr[j], 0);
++						regulator_set_load(
++								reg_ptr[j], 0);
+ 					}
+ 					regulator_set_voltage(
+ 						reg_ptr[j], 0, curr_vreg->
+@@ -477,7 +478,7 @@ int msm_camera_config_vreg(struct device *dev, struct camera_vreg_t *cam_vreg,
+ 
+ vreg_unconfig:
+ if (regulator_count_voltages(reg_ptr[j]) > 0)
+-	regulator_set_optimum_mode(reg_ptr[j], 0);
++	regulator_set_load(reg_ptr[j], 0);
+ 
+ vreg_set_opt_mode_fail:
+ if (regulator_count_voltages(reg_ptr[j]) > 0)
+@@ -680,7 +681,7 @@ int msm_camera_config_single_vreg(struct device *dev,
+ 				goto vreg_set_voltage_fail;
+ 			}
+ 			if (cam_vreg->op_mode >= 0) {
+-				rc = regulator_set_optimum_mode(*reg_ptr,
++				rc = regulator_set_load(*reg_ptr,
+ 					cam_vreg->op_mode);
+ 				if (rc < 0) {
+ 					pr_err(
+@@ -703,7 +704,7 @@ int msm_camera_config_single_vreg(struct device *dev,
+ 			regulator_disable(*reg_ptr);
+ 			if (regulator_count_voltages(*reg_ptr) > 0) {
+ 				if (cam_vreg->op_mode >= 0)
+-					regulator_set_optimum_mode(*reg_ptr, 0);
++					regulator_set_load(*reg_ptr, 0);
+ 				regulator_set_voltage(
+ 					*reg_ptr, 0, cam_vreg->max_voltage);
+ 			}
+@@ -717,7 +718,7 @@ int msm_camera_config_single_vreg(struct device *dev,
+ 
+ vreg_unconfig:
+ if (regulator_count_voltages(*reg_ptr) > 0)
+-	regulator_set_optimum_mode(*reg_ptr, 0);
++	regulator_set_load(*reg_ptr, 0);
+ 
+ vreg_set_opt_mode_fail:
+ if (regulator_count_voltages(*reg_ptr) > 0)
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/fd/msm_fd_dev.c b/drivers/media/platform/msm/camera_v2-legacy/fd/msm_fd_dev.c
+index f49ccfc5282c..294a2d8fb12b 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/fd/msm_fd_dev.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/fd/msm_fd_dev.c
+@@ -173,20 +173,22 @@ static int msm_fd_fill_format_from_ctx(struct v4l2_format *f, struct fd_ctx *c)
+  * @alloc_ctxs: Array of allocated contexts for each plane.
+  */
+ static int msm_fd_queue_setup(struct vb2_queue *q,
+-	const struct v4l2_format *fmt,
++//	const void *parg,
+ 	unsigned int *num_buffers, unsigned int *num_planes,
+-	unsigned int sizes[], void *alloc_ctxs[])
++	unsigned int sizes[], struct device *alloc_ctxs[])
+ {
+ 	struct fd_ctx *ctx = vb2_get_drv_priv(q);
++	//const struct v4l2_format *fmt = parg;
++	const struct v4l2_format *fmt = NULL;
+ 
+ 	*num_planes = 1;
+ 
+-	if (NULL == fmt)
++	if (fmt == NULL)
+ 		sizes[0] = ctx->format.sizeimage;
+ 	else
+ 		sizes[0] = fmt->fmt.pix.sizeimage;
+ 
+-	alloc_ctxs[0] = &ctx->mem_pool;
++	alloc_ctxs[0] = (struct device *)&ctx->mem_pool;
+ 
+ 	return 0;
+ }
+@@ -286,10 +288,11 @@ static struct vb2_ops msm_fd_vb2_q_ops = {
+  * @size: Size of the buffer
+  * @write: True if buffer will be used for writing the data.
+  */
+-static void *msm_fd_get_userptr(void *alloc_ctx,
+-	unsigned long vaddr, unsigned long size, int write)
++static void *msm_fd_get_userptr(struct device *alloc_ctx,
++	unsigned long vaddr, unsigned long size,
++	enum dma_data_direction dma_dir)
+ {
+-	struct msm_fd_mem_pool *pool = alloc_ctx;
++	struct msm_fd_mem_pool *pool = (void *)alloc_ctx;
+ 	struct msm_fd_buf_handle *buf;
+ 	int ret;
+ 
+@@ -1252,7 +1255,7 @@ static void msm_fd_wq_handler(struct work_struct *work)
+ 		dev_err(fd->dev, "Oops no active buffer empty queue\n");
+ 		return;
+ 	}
+-	ctx = vb2_get_drv_priv(active_buf->vb.vb2_queue);
++	ctx = vb2_get_drv_priv(active_buf->vb_v4l2_buf.vb2_buf.vb2_queue);
+ 
+ 	/* Increment sequence number, 0 means sequence is not valid */
+ 	ctx->sequence++;
+@@ -1282,15 +1285,15 @@ static void msm_fd_wq_handler(struct work_struct *work)
+ 	msm_fd_hw_schedule_next_buffer(fd);
+ 
+ 	/* Return buffer to vb queue */
+-	active_buf->vb.v4l2_buf.sequence = ctx->fh.sequence;
+-	vb2_buffer_done(&active_buf->vb, VB2_BUF_STATE_DONE);
++	active_buf->vb_v4l2_buf.sequence = ctx->fh.sequence;
++	vb2_buffer_done(&active_buf->vb_v4l2_buf.vb2_buf, VB2_BUF_STATE_DONE);
+ 
+ 	/* Sent event */
+ 	memset(&event, 0x00, sizeof(event));
+ 	event.type = MSM_EVENT_FD;
+ 	fd_event = (struct msm_fd_event *)event.u.data;
+ 	fd_event->face_cnt = stats->face_cnt;
+-	fd_event->buf_index = active_buf->vb.v4l2_buf.index;
++	fd_event->buf_index = active_buf->vb_v4l2_buf.vb2_buf.index;
+ 	fd_event->frame_id = ctx->sequence;
+ 	v4l2_event_queue_fh(&ctx->fh, &event);
+ 
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/fd/msm_fd_dev.h b/drivers/media/platform/msm/camera_v2-legacy/fd/msm_fd_dev.h
+index c06ac37bccb1..734568406419 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/fd/msm_fd_dev.h
++++ b/drivers/media/platform/msm/camera_v2-legacy/fd/msm_fd_dev.h
+@@ -117,7 +117,7 @@ struct msm_fd_buf_handle {
+  * @list: Buffer is part of FD device processing queue
+  */
+ struct msm_fd_buffer {
+-	struct vb2_buffer vb;
++	struct vb2_v4l2_buffer vb_v4l2_buf;
+ 	atomic_t active;
+ 	struct completion completion;
+ 	struct msm_fd_format format;
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/fd/msm_fd_hw.c b/drivers/media/platform/msm/camera_v2-legacy/fd/msm_fd_hw.c
+index a20f40a0969f..7ae38c558dfd 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/fd/msm_fd_hw.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/fd/msm_fd_hw.c
+@@ -1081,7 +1081,7 @@ static int msm_fd_hw_enable(struct msm_fd_device *fd,
+ 	struct msm_fd_buffer *buffer)
+ {
+ 	struct msm_fd_buf_handle *buf_handle =
+-		buffer->vb.planes[0].mem_priv;
++			buffer->vb_v4l2_buf.vb2_buf.planes[0].mem_priv;
+ 
+ 	if (msm_fd_hw_is_runnig(fd)) {
+ 		dev_err(fd->dev, "Device is busy we can not enable\n");
+@@ -1177,13 +1177,13 @@ void msm_fd_hw_remove_buffers_from_queue(struct msm_fd_device *fd,
+ 
+ 	active_buffer = NULL;
+ 	list_for_each_entry_safe(curr_buff, temp, &fd->buf_queue, list) {
+-		if (curr_buff->vb.vb2_queue == vb2_q) {
++		if (curr_buff->vb_v4l2_buf.vb2_buf.vb2_queue == vb2_q) {
+ 
+ 			if (atomic_read(&curr_buff->active))
+ 				active_buffer = curr_buff;
+ 			else {
+ 				/* Do a Buffer done on all the other buffers */
+-				vb2_buffer_done(&curr_buff->vb,
++				vb2_buffer_done(&curr_buff->vb_v4l2_buf.vb2_buf,
+ 					VB2_BUF_STATE_DONE);
+ 				list_del(&curr_buff->list);
+ 			}
+@@ -1197,7 +1197,9 @@ void msm_fd_hw_remove_buffers_from_queue(struct msm_fd_device *fd,
+ 			msecs_to_jiffies(MSM_FD_PROCESSING_TIMEOUT_MS));
+ 		if (!time) {
+ 			/* Do a vb2 buffer done since it timed out */
+-			vb2_buffer_done(&active_buffer->vb, VB2_BUF_STATE_DONE);
++			vb2_buffer_done(
++				&active_buffer->vb_v4l2_buf.vb2_buf,
++				VB2_BUF_STATE_DONE);
+ 			/* Remove active buffer */
+ 			msm_fd_hw_get_active_buffer(fd);
+ 			/* Schedule if other buffers are present in device */
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_buf_mgr.c b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_buf_mgr.c
+index 8b5095ac959e..950e4cc77a8b 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_buf_mgr.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_buf_mgr.c
+@@ -169,14 +169,14 @@ static int msm_isp_free_bufq_handle(struct msm_isp_buf_mgr *buf_mgr,
+ 
+ static void msm_isp_copy_planes_from_v4l2_buffer(
+ 	struct msm_isp_qbuf_buffer *qbuf_buf,
+-	const struct v4l2_buffer *v4l2_buf)
++	const struct vb2_buffer *vb2_buf)
+ {
+ 	int i;
+-	qbuf_buf->num_planes = v4l2_buf->length;
++	qbuf_buf->num_planes = vb2_buf->num_planes;
+ 	for (i = 0; i < qbuf_buf->num_planes; i++) {
+-		qbuf_buf->planes[i].addr = v4l2_buf->m.planes[i].m.userptr;
+-		qbuf_buf->planes[i].offset = v4l2_buf->m.planes[i].data_offset;
+-		qbuf_buf->planes[i].length = v4l2_buf->m.planes[i].length;
++		qbuf_buf->planes[i].addr = vb2_buf->planes[i].m.userptr;
++		qbuf_buf->planes[i].offset = vb2_buf->planes[i].data_offset;
++		qbuf_buf->planes[i].length = vb2_buf->planes[i].length;
+ 	}
+ }
+ 
+@@ -309,7 +309,7 @@ static int msm_isp_unmap_buf(struct msm_isp_buf_mgr *buf_mgr,
+ }
+ 
+ static int msm_isp_buf_prepare(struct msm_isp_buf_mgr *buf_mgr,
+-	struct msm_isp_qbuf_info *info, struct vb2_buffer *vb2_buf)
++	struct msm_isp_qbuf_info *info, struct vb2_v4l2_buffer *vb2_v4l2_buf)
+ {
+ 	int rc = -1;
+ 	unsigned long flags;
+@@ -347,9 +347,9 @@ static int msm_isp_buf_prepare(struct msm_isp_buf_mgr *buf_mgr,
+ 	}
+ 	spin_unlock_irqrestore(&bufq->bufq_lock, flags);
+ 
+-	if (vb2_buf) {
+-		msm_isp_copy_planes_from_v4l2_buffer(&buf, &vb2_buf->v4l2_buf);
+-		buf_info->vb2_buf = vb2_buf;
++	if (vb2_v4l2_buf) {
++		msm_isp_copy_planes_from_v4l2_buffer(&buf,
++				&vb2_v4l2_buf->vb2_buf);
+ 	} else {
+ 		buf = info->buffer;
+ 	}
+@@ -392,7 +392,8 @@ static int msm_isp_buf_unprepare_all(struct msm_isp_buf_mgr *buf_mgr,
+ 		if (MSM_ISP_BUFFER_SRC_HAL == BUF_SRC(bufq->stream_id)) {
+ 			if (buf_info->state == MSM_ISP_BUFFER_STATE_DEQUEUED ||
+ 			buf_info->state == MSM_ISP_BUFFER_STATE_DIVERTED)
+-				buf_mgr->vb2_ops->put_buf(buf_info->vb2_buf,
++				buf_mgr->vb2_ops->put_buf(
++					buf_info->vb2_v4l2_buf,
+ 					bufq->session_id, bufq->stream_id);
+ 		}
+ 		msm_isp_unprepare_v4l2_buf(buf_mgr, buf_info, bufq->stream_id);
+@@ -464,8 +465,8 @@ static int msm_isp_buf_unprepare(struct msm_isp_buf_mgr *buf_mgr,
+ 	if (MSM_ISP_BUFFER_SRC_HAL == BUF_SRC(bufq->stream_id)) {
+ 		if (buf_info->state == MSM_ISP_BUFFER_STATE_DEQUEUED ||
+ 		buf_info->state == MSM_ISP_BUFFER_STATE_DIVERTED)
+-			buf_mgr->vb2_ops->put_buf(buf_info->vb2_buf,
+-				bufq->session_id, bufq->stream_id);
++			buf_mgr->vb2_ops->put_buf(buf_info->vb2_v4l2_buf,
++					bufq->session_id, bufq->stream_id);
+ 	}
+ 	msm_isp_unprepare_v4l2_buf(buf_mgr, buf_info, bufq->stream_id);
+ 
+@@ -481,7 +482,7 @@ static int msm_isp_get_buf(struct msm_isp_buf_mgr *buf_mgr, uint32_t id,
+ 	unsigned long flags;
+ 	struct msm_isp_buffer *temp_buf_info = NULL;
+ 	struct msm_isp_bufq *bufq = NULL;
+-	struct vb2_buffer *vb2_buf = NULL;
++	struct vb2_v4l2_buffer *vb2_v4l2_buf = NULL;
+ 
+ 	if (buf_mgr->open_count == 0) {
+ 		pr_err_ratelimited("%s: bug mgr open cnt = 0\n",
+@@ -525,29 +526,28 @@ static int msm_isp_get_buf(struct msm_isp_buf_mgr *buf_mgr, uint32_t id,
+ 		}
+ 		break;
+ 	case MSM_ISP_BUFFER_SRC_HAL:
+-		if (MSM_ISP_INVALID_BUF_INDEX == buf_index)
+-			vb2_buf = buf_mgr->vb2_ops->get_buf(
++		if (buf_index == MSM_ISP_INVALID_BUF_INDEX)
++			vb2_v4l2_buf = buf_mgr->vb2_ops->get_buf(
+ 				bufq->session_id, bufq->stream_id);
+ 		else
+-			vb2_buf = buf_mgr->vb2_ops->get_buf_by_idx(
++			vb2_v4l2_buf = buf_mgr->vb2_ops->get_buf_by_idx(
+ 				bufq->session_id, bufq->stream_id,  buf_index);
+-		if (vb2_buf) {
+-			if (vb2_buf->v4l2_buf.index < bufq->num_bufs) {
+-				*buf_info = &bufq->bufs[vb2_buf
+-						->v4l2_buf.index];
+-				(*buf_info)->vb2_buf = vb2_buf;
++		if (vb2_v4l2_buf) {
++			if (vb2_v4l2_buf->vb2_buf.index < bufq->num_bufs) {
++				*buf_info = &bufq->bufs[vb2_v4l2_buf
++						->vb2_buf.index];
++				(*buf_info)->vb2_v4l2_buf = vb2_v4l2_buf;
+ 			} else {
+ 				pr_err("%s: Incorrect buf index %d\n",
+-					__func__, vb2_buf->v4l2_buf.index);
++					__func__, vb2_v4l2_buf->vb2_buf.index);
+ 				rc = -EINVAL;
+ 			}
+ 			if ((*buf_info) == NULL) {
+-				buf_mgr->vb2_ops->put_buf(vb2_buf,
++				buf_mgr->vb2_ops->put_buf(vb2_v4l2_buf,
+ 					bufq->session_id, bufq->stream_id);
+ 				pr_err("%s: buf index %d not found!\n",
+-					__func__, vb2_buf->v4l2_buf.index);
++					__func__, vb2_v4l2_buf->vb2_buf.index);
+ 				rc = -EINVAL;
+-
+ 			}
+ 		} else {
+ 			CDBG("%s: No HAL Buffer session_id: %d stream_id: %d\n",
+@@ -615,8 +615,8 @@ static int msm_isp_put_buf_unsafe(struct msm_isp_buf_mgr *buf_mgr,
+ 				return -EFAULT;
+ 			}
+ 		} else {
+-			buf_mgr->vb2_ops->put_buf(buf_info->vb2_buf,
+-				bufq->session_id, bufq->stream_id);
++				buf_mgr->vb2_ops->put_buf(buf_info->vb2_v4l2_buf,
++						bufq->session_id, bufq->stream_id);
+ 		}
+ 		buf_info->state = MSM_ISP_BUFFER_STATE_QUEUED;
+ 		rc = 0;
+@@ -786,7 +786,7 @@ static int msm_isp_buf_done(struct msm_isp_buf_mgr *buf_mgr,
+ 		if (state == MSM_ISP_BUFFER_STATE_DEQUEUED) {
+ 			buf_info->state = MSM_ISP_BUFFER_STATE_DISPATCHED;
+ 			spin_unlock_irqrestore(&bufq->bufq_lock, flags);
+-			buf_mgr->vb2_ops->buf_done(buf_info->vb2_buf,
++			buf_mgr->vb2_ops->buf_done(buf_info->vb2_v4l2_buf,
+ 				bufq->session_id, bufq->stream_id,
+ 				frame_id, tv, output_format);
+ 		} else {
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_buf_mgr.h b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_buf_mgr.h
+index e0ddbdc63b0f..d9de02854f92 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_buf_mgr.h
++++ b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_buf_mgr.h
+@@ -106,7 +106,7 @@ struct msm_isp_buffer {
+ 	struct msm_isp_buffer_debug_t buf_debug;
+ 
+ 	/*Vb2 buffer data*/
+-	struct vb2_buffer *vb2_buf;
++	struct vb2_v4l2_buffer *vb2_v4l2_buf;
+ };
+ 
+ struct msm_isp_bufq {
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp.c b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp.c
+index 8772f324b454..d889a05fce56 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp.c
+@@ -681,9 +681,9 @@ int vfe_hw_probe(struct platform_device *pdev)
+ 	spin_lock_init(&req_history_lock);
+ 	spin_lock_init(&vfe_dev->reset_completion_lock);
+ 	spin_lock_init(&vfe_dev->halt_completion_lock);
+-	media_entity_init(&vfe_dev->subdev.sd.entity, 0, NULL, 0);
+-	vfe_dev->subdev.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
++	media_entity_pads_init(&vfe_dev->subdev.sd.entity, 0, NULL);
+ 	vfe_dev->subdev.sd.entity.group_id = MSM_CAMERA_SUBDEV_VFE;
++	//vfe_dev->subdev.sd.entity.group_id = MSM_CAMERA_SUBDEV_VFE;
+ 	vfe_dev->subdev.sd.entity.name = pdev->name;
+ 	vfe_dev->subdev.close_seq = MSM_SD_CLOSE_1ST_CATEGORY | 0x2;
+ 	rc = msm_sd_register(&vfe_dev->subdev);
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp.h b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp.h
+index d36bb887acdd..50df5ac2ef34 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp.h
++++ b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp.h
+@@ -19,7 +19,6 @@
+ #include <linux/io.h>
+ #include <linux/list.h>
+ #include <linux/delay.h>
+-#include <linux/avtimer_kernel.h>
+ #include <media/v4l2-subdev.h>
+ #include <media/msmb_isp-legacy.h>
+ #include <linux/msm-bus.h>
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp47.c b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp47.c
+index b7bf00eebeb1..ac655a6788ab 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp47.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp47.c
+@@ -150,8 +150,10 @@ static struct msm_bus_paths msm_isp_bus_client_config[] = {
+ 
+ static struct msm_bus_scale_pdata msm_isp_bus_client_pdata = {
+ 	msm_isp_bus_client_config,
++	NULL,
+ 	ARRAY_SIZE(msm_isp_bus_client_config),
+ 	.name = "msm_camera_isp",
++	0
+ };
+ 
+ uint32_t msm_vfe47_ub_reg_offset(struct vfe_device *vfe_dev, int wm_idx)
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp_axi_util.c b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp_axi_util.c
+index 701a43be1bb1..ee860840d838 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp_axi_util.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp_axi_util.c
+@@ -18,6 +18,10 @@
+ 
+ 
+ #define ISP_SOF_DEBUG_COUNT 0
++#ifdef CONFIG_MSM_AVTIMER
++static struct avtimer_fptr_t avtimer_func;
++#endif
++
+ static int msm_isp_update_dual_HW_ms_info_at_start(
+ 	struct vfe_device *vfe_dev,
+ 	enum msm_vfe_input_src stream_src,
+@@ -448,7 +452,7 @@ int msm_isp_axi_check_stream_state(
+ 	struct msm_vfe_axi_stream_cfg_cmd *stream_cfg_cmd)
+ {
+ 	int rc = 0, i;
+-	unsigned long flags;
++	unsigned long flags = 0;
+ 	struct msm_vfe_axi_shared_data *axi_data = &vfe_dev->axi_data;
+ 	struct msm_vfe_axi_stream *stream_info;
+ 	enum msm_vfe_axi_state valid_state =
+@@ -1198,10 +1202,35 @@ void msm_isp_calculate_bandwidth(
+ }
+ 
+ #ifdef CONFIG_MSM_AVTIMER
++/**
++ * msm_isp_set_avtimer_fptr() - Set avtimer function pointer
++ * @avtimer: struct of type avtimer_fptr_t to hold function pointer.
++ *
++ * Initialize the function pointers sent by the avtimer driver
++ *
++ */
++void msm_isp_set_avtimer_fptr(struct avtimer_fptr_t avtimer)
++{
++	avtimer_func.fptr_avtimer_open   = avtimer.fptr_avtimer_open;
++	avtimer_func.fptr_avtimer_enable = avtimer.fptr_avtimer_enable;
++	avtimer_func.fptr_avtimer_get_time = avtimer.fptr_avtimer_get_time;
++}
++EXPORT_SYMBOL(msm_isp_set_avtimer_fptr);
++
+ void msm_isp_start_avtimer(void)
+ {
+-	avcs_core_open();
+-	avcs_core_disable_power_collapse(1);
++	if (avtimer_func.fptr_avtimer_open &&
++			avtimer_func.fptr_avtimer_enable) {
++		avtimer_func.fptr_avtimer_open();
++		avtimer_func.fptr_avtimer_enable(1);
++	}
++}
++
++void msm_isp_stop_avtimer(void)
++{
++	if (avtimer_func.fptr_avtimer_enable) {
++		avtimer_func.fptr_avtimer_enable(0);
++	}
+ }
+ 
+ void msm_isp_get_avtimer_ts(
+@@ -1211,19 +1240,21 @@ void msm_isp_get_avtimer_ts(
+ 	uint32_t avtimer_usec = 0;
+ 	uint64_t avtimer_tick = 0;
+ 
+-	rc = avcs_core_query_timer(&avtimer_tick);
+-	if (rc < 0) {
+-		pr_err("%s: Error: Invalid AVTimer Tick, rc=%d\n",
+-			   __func__, rc);
+-		/* In case of error return zero AVTimer Tick Value */
+-		time_stamp->vt_time.tv_sec = 0;
+-		time_stamp->vt_time.tv_usec = 0;
+-	} else {
+-		avtimer_usec = do_div(avtimer_tick, USEC_PER_SEC);
+-		time_stamp->vt_time.tv_sec = (uint32_t)(avtimer_tick);
+-		time_stamp->vt_time.tv_usec = avtimer_usec;
+-		pr_debug("%s: AVTimer TS = %u:%u\n", __func__,
+-			(uint32_t)(avtimer_tick), avtimer_usec);
++	if (avtimer_func.fptr_avtimer_get_time) {
++		rc = avtimer_func.fptr_avtimer_get_time(&avtimer_tick);
++		if (rc < 0) {
++			pr_err("%s: Error: Invalid AVTimer Tick, rc=%d\n",
++				   __func__, rc);
++			/* In case of error return zero AVTimer Tick Value */
++			time_stamp->vt_time.tv_sec = 0;
++			time_stamp->vt_time.tv_usec = 0;
++		} else {
++			avtimer_usec = do_div(avtimer_tick, USEC_PER_SEC);
++			time_stamp->vt_time.tv_sec = (uint32_t)(avtimer_tick);
++			time_stamp->vt_time.tv_usec = avtimer_usec;
++			pr_debug("%s: AVTimer TS = %u:%u\n", __func__,
++				(uint32_t)(avtimer_tick), avtimer_usec);
++		}
+ 	}
+ }
+ #else
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp_axi_util.h b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp_axi_util.h
+index f0df70695212..b88a1fb9e2dd 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp_axi_util.h
++++ b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp_axi_util.h
+@@ -50,6 +50,8 @@ void msm_isp_reset_framedrop(struct vfe_device *vfe_dev,
+ 	struct msm_vfe_axi_stream *stream_info);
+ 
+ int msm_isp_request_axi_stream(struct vfe_device *vfe_dev, void *arg);
++void msm_isp_start_avtimer(void);
++void msm_isp_stop_avtimer(void);
+ void msm_isp_get_avtimer_ts(struct msm_isp_timestamp *time_stamp);
+ int msm_isp_cfg_axi_stream(struct vfe_device *vfe_dev, void *arg);
+ int msm_isp_update_stream_bandwidth(struct vfe_device *vfe_dev,
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp_util.c b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp_util.c
+index ff6d0b1c95fc..51bac961718f 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp_util.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp_util.c
+@@ -2319,7 +2319,7 @@ int msm_isp_open_node(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+ #ifdef CONFIG_MSM_AVTIMER
+ void msm_isp_end_avtimer(void)
+ {
+-	avcs_core_disable_power_collapse(0);
++	msm_isp_stop_avtimer();
+ }
+ #else
+ void msm_isp_end_avtimer(void)
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/ispif/msm_ispif.c b/drivers/media/platform/msm/camera_v2-legacy/ispif/msm_ispif.c
+index 70ea476a046b..42771bd3291c 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/ispif/msm_ispif.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/ispif/msm_ispif.c
+@@ -2083,8 +2083,7 @@ static int ispif_probe(struct platform_device *pdev)
+ 
+ 	platform_set_drvdata(pdev, &ispif->msm_sd.sd);
+ 
+-	media_entity_init(&ispif->msm_sd.sd.entity, 0, NULL, 0);
+-	ispif->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
++	media_entity_pads_init(&ispif->msm_sd.sd.entity, 0, NULL);
+ 	ispif->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_ISPIF;
+ 	ispif->msm_sd.sd.entity.name = pdev->name;
+ 	ispif->msm_sd.close_seq = MSM_SD_CLOSE_1ST_CATEGORY | 0x1;
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/jpeg_10/msm_jpeg_platform.c b/drivers/media/platform/msm/camera_v2-legacy/jpeg_10/msm_jpeg_platform.c
+index 266a5a6be2a2..fe420f8caec4 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/jpeg_10/msm_jpeg_platform.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/jpeg_10/msm_jpeg_platform.c
+@@ -22,7 +22,6 @@
+ #include <linux/iommu.h>
+ #include <asm/dma-iommu.h>
+ #include <linux/dma-direction.h>
+-#include <linux/dma-attrs.h>
+ #include <linux/dma-buf.h>
+ 
+ #include "msm_camera_io_util.h"
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/jpeg_dma/msm_jpeg_dma_dev.c b/drivers/media/platform/msm/camera_v2-legacy/jpeg_dma/msm_jpeg_dma_dev.c
+index 178e8031aab6..405b8dc46095 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/jpeg_dma/msm_jpeg_dma_dev.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/jpeg_dma/msm_jpeg_dma_dev.c
+@@ -277,11 +277,12 @@ static int msm_jpegdma_update_hw_config(struct jpegdma_ctx *ctx)
+  * @alloc_ctxs: Array of allocated contexts for each plane.
+  */
+ static int msm_jpegdma_queue_setup(struct vb2_queue *q,
+-	const struct v4l2_format *fmt,
++//	const void *parg,
+ 	unsigned int *num_buffers, unsigned int *num_planes,
+-	unsigned int sizes[], void *alloc_ctxs[])
++	unsigned int sizes[], struct device *alloc_ctxs[])
+ {
+ 	struct jpegdma_ctx *ctx = vb2_get_drv_priv(q);
++	struct v4l2_format *fmt = NULL;
+ 
+ 	if (NULL == fmt) {
+ 		switch (q->type) {
+@@ -299,7 +300,7 @@ static int msm_jpegdma_queue_setup(struct vb2_queue *q,
+ 	}
+ 
+ 	*num_planes = 1;
+-	alloc_ctxs[0] = ctx->jdma_device;
++	alloc_ctxs[0] = (struct device*) ctx->jdma_device;
+ 
+ 	return 0;
+ }
+@@ -311,8 +312,9 @@ static int msm_jpegdma_queue_setup(struct vb2_queue *q,
+ static void msm_jpegdma_buf_queue(struct vb2_buffer *vb)
+ {
+ 	struct jpegdma_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
++	struct vb2_v4l2_buffer *vb2_v4l2_buf = to_vb2_v4l2_buffer(vb);
+ 
+-	v4l2_m2m_buf_queue(ctx->m2m_ctx, vb);
++	v4l2_m2m_buf_queue(ctx->m2m_ctx, vb2_v4l2_buf);
+ 
+ 	return;
+ }
+@@ -380,10 +382,11 @@ static struct vb2_ops msm_jpegdma_vb2_q_ops = {
+  * @size: Size of the buffer
+  * @write: True if buffer will be used for writing the data.
+  */
+-static void *msm_jpegdma_get_userptr(void *alloc_ctx,
+-	unsigned long vaddr, unsigned long size, int write)
++static void *msm_jpegdma_get_userptr(struct device *alloc_ctx,
++		unsigned long vaddr, unsigned long size,
++		enum dma_data_direction dma_dir)
+ {
+-	struct msm_jpegdma_device *dma = alloc_ctx;
++	struct msm_jpegdma_device *dma = (void *) alloc_ctx;
+ 	struct msm_jpegdma_buf_handle *buf;
+ 	int ret;
+ 
+@@ -438,7 +441,7 @@ static int msm_jpegdma_queue_init(void *priv, struct vb2_queue *src_vq,
+ 	src_vq->drv_priv = ctx;
+ 	src_vq->mem_ops = &msm_jpegdma_vb2_mem_ops;
+ 	src_vq->ops = &msm_jpegdma_vb2_q_ops;
+-	src_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
++	src_vq->buf_struct_size = sizeof(struct vb2_v4l2_buffer);
+ 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+ 
+ 	ret = vb2_queue_init(src_vq);
+@@ -452,7 +455,7 @@ static int msm_jpegdma_queue_init(void *priv, struct vb2_queue *src_vq,
+ 	dst_vq->drv_priv = ctx;
+ 	dst_vq->mem_ops = &msm_jpegdma_vb2_mem_ops;
+ 	dst_vq->ops = &msm_jpegdma_vb2_q_ops;
+-	dst_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
++	dst_vq->buf_struct_size = sizeof(struct vb2_v4l2_buffer);
+ 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+ 
+ 	ret = vb2_queue_init(dst_vq);
+@@ -1047,17 +1050,17 @@ static const struct v4l2_ioctl_ops fd_ioctl_ops = {
+  * @dst_buf: Pointer to Vb2 destination buffer.
+  */
+ static void msm_jpegdma_process_buffers(struct jpegdma_ctx *ctx,
+-	struct vb2_buffer *src_buf, struct vb2_buffer *dst_buf)
++	struct vb2_v4l2_buffer *src_buf, struct vb2_v4l2_buffer *dst_buf)
+ {
+ 	struct msm_jpegdma_buf_handle *buf_handle;
+ 	struct msm_jpegdma_addr addr;
+ 	int plane_idx;
+ 	int config_idx;
+ 
+-	buf_handle = dst_buf->planes[0].mem_priv;
++	buf_handle = dst_buf->vb2_buf.planes[0].mem_priv;
+ 	addr.out_addr = buf_handle->addr;
+ 
+-	buf_handle = src_buf->planes[0].mem_priv;
++	buf_handle = src_buf->vb2_buf.planes[0].mem_priv;
+ 	addr.in_addr = buf_handle->addr;
+ 
+ 	plane_idx = ctx->plane_idx;
+@@ -1073,8 +1076,8 @@ static void msm_jpegdma_process_buffers(struct jpegdma_ctx *ctx,
+  */
+ static void msm_jpegdma_device_run(void *priv)
+ {
+-	struct vb2_buffer *src_buf;
+-	struct vb2_buffer *dst_buf;
++    struct vb2_v4l2_buffer *src_buf;
++    struct vb2_v4l2_buffer *dst_buf;
+ 	struct jpegdma_ctx *ctx = priv;
+ 
+ 	dev_dbg(ctx->jdma_device->dev, "Jpeg v4l2 dma device run E\n");
+@@ -1135,8 +1138,8 @@ static struct v4l2_m2m_ops msm_jpegdma_m2m_ops = {
+  */
+ void msm_jpegdma_isr_processing_done(struct msm_jpegdma_device *dma)
+ {
+-	struct vb2_buffer *src_buf;
+-	struct vb2_buffer *dst_buf;
++	struct vb2_v4l2_buffer *src_buf;
++	struct vb2_v4l2_buffer *dst_buf;
+ 	struct jpegdma_ctx *ctx;
+ 
+ 	mutex_lock(&dma->lock);
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/msm.c b/drivers/media/platform/msm/camera_v2-legacy/msm.c
+index 8eb854d803ad..5f117d453471 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/msm.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/msm.c
+@@ -373,8 +373,8 @@ static inline int __msm_sd_register_subdev(struct v4l2_subdev *sd)
+ 	}
+ 
+ #if defined(CONFIG_MEDIA_CONTROLLER)
+-	sd->entity.info.v4l.major = VIDEO_MAJOR;
+-	sd->entity.info.v4l.minor = vdev->minor;
++	sd->entity.info.dev.major = VIDEO_MAJOR;
++	sd->entity.info.dev.minor = vdev->minor;
+ 	sd->entity.name = video_device_node_name(vdev);
+ #endif
+ 	sd->devnode = vdev;
+@@ -1094,7 +1094,7 @@ static struct v4l2_file_operations msm_fops = {
+ 	.open   = msm_open,
+ 	.poll   = msm_poll,
+ 	.release = msm_close,
+-	.ioctl   = video_ioctl2,
++	.unlocked_ioctl   = video_ioctl2,
+ #ifdef CONFIG_COMPAT
+ 	.compat_ioctl32 = video_ioctl2,
+ #endif
+@@ -1335,11 +1335,10 @@ static int msm_probe(struct platform_device *pdev)
+ 	if (WARN_ON(rc < 0))
+ 		goto media_fail;
+ 
+-	if (WARN_ON((rc == media_entity_init(&pvdev->vdev->entity,
+-			0, NULL, 0)) < 0))
++	if (WARN_ON((rc == media_entity_pads_init(&pvdev->vdev->entity,
++					0, NULL)) < 0))
+ 		goto entity_fail;
+ 
+-	pvdev->vdev->entity.type = MEDIA_ENT_T_DEVNODE_V4L;
+ 	pvdev->vdev->entity.group_id = QCAMERA_VNODE_GROUP_ID;
+ #endif
+ 
+@@ -1351,6 +1350,7 @@ static int msm_probe(struct platform_device *pdev)
+ 	if (WARN_ON(rc < 0))
+ 		goto register_fail;
+ 
++	media_device_init(msm_v4l2_dev->mdev);
+ 	strlcpy(pvdev->vdev->name, "msm-config", sizeof(pvdev->vdev->name));
+ 	pvdev->vdev->release  = video_device_release;
+ 	pvdev->vdev->fops     = &msm_fops;
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/msm_buf_mgr/msm_generic_buf_mgr.c b/drivers/media/platform/msm/camera_v2-legacy/msm_buf_mgr/msm_generic_buf_mgr.c
+index 620b5046e8a3..a8e85dec0f6b 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/msm_buf_mgr/msm_generic_buf_mgr.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/msm_buf_mgr/msm_generic_buf_mgr.c
+@@ -64,20 +64,20 @@ static int32_t msm_buf_mngr_get_buf(struct msm_buf_mngr_device *dev,
+ 		return -ENOMEM;
+ 	}
+ 	INIT_LIST_HEAD(&new_entry->entry);
+-	new_entry->vb2_buf = dev->vb2_ops.get_buf(buf_info->session_id,
++	new_entry->vb2_v4l2_buf = dev->vb2_ops.get_buf(buf_info->session_id,
+ 		buf_info->stream_id);
+-	if (!new_entry->vb2_buf) {
++	if (!new_entry->vb2_v4l2_buf) {
+ 		pr_debug("%s:Get buf is null\n", __func__);
+ 		kfree(new_entry);
+ 		return -EINVAL;
+ 	}
+ 	new_entry->session_id = buf_info->session_id;
+ 	new_entry->stream_id = buf_info->stream_id;
+-	new_entry->index = new_entry->vb2_buf->v4l2_buf.index;
++	new_entry->index = new_entry->vb2_v4l2_buf->vb2_buf.index;
+ 	spin_lock_irqsave(&dev->buf_q_spinlock, flags);
+ 	list_add_tail(&new_entry->entry, &dev->buf_qhead);
+ 	spin_unlock_irqrestore(&dev->buf_q_spinlock, flags);
+-	buf_info->index = new_entry->vb2_buf->v4l2_buf.index;
++	buf_info->index = new_entry->vb2_v4l2_buf->vb2_buf.index;
+ 	if (buf_info->type == MSM_CAMERA_BUF_MNGR_BUF_USER) {
+ 		mutex_lock(&dev->cont_mutex);
+ 		if (!list_empty(&dev->cont_qhead)) {
+@@ -112,16 +112,16 @@ static int32_t msm_buf_mngr_get_buf_by_idx(struct msm_buf_mngr_device *dev,
+ 	}
+ 
+ 	INIT_LIST_HEAD(&new_entry->entry);
+-	new_entry->vb2_buf = dev->vb2_ops.get_buf_by_idx(buf_info->session_id,
+-		buf_info->stream_id, buf_info->index);
+-	if (!new_entry->vb2_buf) {
++	new_entry->vb2_v4l2_buf = dev->vb2_ops.get_buf_by_idx(
++			buf_info->session_id, buf_info->stream_id, buf_info->index);
++	if (!new_entry->vb2_v4l2_buf) {
+ 		pr_debug("%s:Get buf is null\n", __func__);
+ 		kfree(new_entry);
+ 		return -EINVAL;
+ 	}
+ 	new_entry->session_id = buf_info->session_id;
+ 	new_entry->stream_id = buf_info->stream_id;
+-	new_entry->index = new_entry->vb2_buf->v4l2_buf.index;
++	new_entry->index = new_entry->vb2_v4l2_buf->vb2_buf.index;
+ 	spin_lock_irqsave(&dev->buf_q_spinlock, flags);
+ 	list_add_tail(&new_entry->entry, &dev->buf_qhead);
+ 	spin_unlock_irqrestore(&dev->buf_q_spinlock, flags);
+@@ -152,12 +152,12 @@ static int32_t msm_buf_mngr_buf_done(struct msm_buf_mngr_device *buf_mngr_dev,
+ 			(bufs->stream_id == buf_info->stream_id) &&
+ 			(bufs->index == buf_info->index)) {
+ 			ret = buf_mngr_dev->vb2_ops.buf_done
+-					(bufs->vb2_buf,
+-						buf_info->session_id,
+-						buf_info->stream_id,
+-						buf_info->frame_id,
+-						&buf_info->timestamp,
+-						buf_info->reserved);
++								(bufs->vb2_v4l2_buf,
++									buf_info->session_id,
++									buf_info->stream_id,
++									buf_info->frame_id,
++									&buf_info->timestamp,
++									buf_info->reserved);
+ 			list_del_init(&bufs->entry);
+ 			kfree(bufs);
+ 			break;
+@@ -180,7 +180,7 @@ static int32_t msm_buf_mngr_put_buf(struct msm_buf_mngr_device *buf_mngr_dev,
+ 		if ((bufs->session_id == buf_info->session_id) &&
+ 			(bufs->stream_id == buf_info->stream_id) &&
+ 			(bufs->index == buf_info->index)) {
+-			ret = buf_mngr_dev->vb2_ops.put_buf(bufs->vb2_buf,
++			ret = buf_mngr_dev->vb2_ops.put_buf(bufs->vb2_v4l2_buf,
+ 				buf_info->session_id, buf_info->stream_id);
+ 			list_del_init(&bufs->entry);
+ 			kfree(bufs);
+@@ -208,11 +208,11 @@ static int32_t msm_generic_buf_mngr_flush(
+ 	list_for_each_entry_safe(bufs, save, &buf_mngr_dev->buf_qhead, entry) {
+ 		if ((bufs->session_id == buf_info->session_id) &&
+ 			(bufs->stream_id == buf_info->stream_id)) {
+-			ret = buf_mngr_dev->vb2_ops.buf_done(bufs->vb2_buf,
++			ret = buf_mngr_dev->vb2_ops.buf_done(bufs->vb2_v4l2_buf,
+ 						buf_info->session_id,
+ 						buf_info->stream_id, 0, &ts, 0);
+ 			pr_err("Bufs not flushed: str_id = %d buf_index = %d ret = %d\n",
+-			buf_info->stream_id, bufs->vb2_buf->v4l2_buf.index,
++			buf_info->stream_id, bufs->index,
+ 			ret);
+ 			list_del_init(&bufs->entry);
+ 			kfree(bufs);
+@@ -351,7 +351,7 @@ static int msm_buf_mngr_handle_cont_cmd(struct msm_buf_mngr_device *dev,
+ 				}
+ 			}
+ 		}
+-		ion_handle = ion_import_dma_buf(dev->ion_client,
++		ion_handle = ion_import_dma_buf_fd(dev->ion_client,
+ 				cont_cmd->cont_fd);
+ 		if (IS_ERR_OR_NULL(ion_handle)) {
+ 			pr_err("Failed to create ion handle for fd %d\n",
+@@ -851,8 +851,9 @@ static int32_t __init msm_buf_mngr_init(void)
+ 	msm_buf_mngr_dev->subdev.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+ 	v4l2_set_subdevdata(&msm_buf_mngr_dev->subdev.sd, msm_buf_mngr_dev);
+ 
+-	media_entity_init(&msm_buf_mngr_dev->subdev.sd.entity, 0, NULL, 0);
+-	msm_buf_mngr_dev->subdev.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
++	media_entity_pads_init(&msm_buf_mngr_dev->subdev.sd.entity, 0, NULL);
++	msm_buf_mngr_dev->subdev.sd.entity.group_id =
++			MSM_CAMERA_SUBDEV_BUF_MNGR;
+ 	msm_buf_mngr_dev->subdev.sd.entity.group_id =
+ 		MSM_CAMERA_SUBDEV_BUF_MNGR;
+ 	msm_buf_mngr_dev->subdev.sd.internal_ops =
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/msm_buf_mgr/msm_generic_buf_mgr.h b/drivers/media/platform/msm/camera_v2-legacy/msm_buf_mgr/msm_generic_buf_mgr.h
+index 76cfbcac4d13..cd9758a9ef1d 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/msm_buf_mgr/msm_generic_buf_mgr.h
++++ b/drivers/media/platform/msm/camera_v2-legacy/msm_buf_mgr/msm_generic_buf_mgr.h
+@@ -26,7 +26,7 @@
+ 
+ struct msm_get_bufs {
+ 	struct list_head entry;
+-	struct vb2_buffer *vb2_buf;
++	struct vb2_v4l2_buffer *vb2_v4l2_buf;
+ 	uint32_t session_id;
+ 	uint32_t stream_id;
+ 	uint32_t index;
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/msm_sd.h b/drivers/media/platform/msm/camera_v2-legacy/msm_sd.h
+index 47798923c1cb..d2522daafb73 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/msm_sd.h
++++ b/drivers/media/platform/msm/camera_v2-legacy/msm_sd.h
+@@ -69,14 +69,14 @@ struct msm_sd_req_sd {
+ };
+ 
+ struct msm_sd_req_vb2_q {
+-	struct vb2_buffer * (*get_buf)(int session_id, unsigned int stream_id);
++	struct vb2_v4l2_buffer * (*get_buf)(int session_id, unsigned int stream_id);
+ 	struct vb2_queue * (*get_vb2_queue)(int session_id,
+ 		unsigned int stream_id);
+-	struct vb2_buffer * (*get_buf_by_idx)(int session_id,
++	struct vb2_v4l2_buffer * (*get_buf_by_idx)(int session_id,
+ 		unsigned int stream_id, uint32_t index);
+-	int (*put_buf)(struct vb2_buffer *vb2_buf, int session_id,
++	int (*put_buf)(struct vb2_v4l2_buffer *vb2_buf, int session_id,
+ 		unsigned int stream_id);
+-	int (*buf_done)(struct vb2_buffer *vb2_buf, int session_id,
++	int (*buf_done)(struct vb2_v4l2_buffer *vb2_buf, int session_id,
+ 		unsigned int stream_id, uint32_t sequence, struct timeval *ts,
+ 		uint32_t reserved);
+ 	int (*flush_buf)(int session_id, unsigned int stream_id);
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/msm_vb2/msm_vb2.c b/drivers/media/platform/msm/camera_v2-legacy/msm_vb2/msm_vb2.c
+index b65a9e09e3b3..facb5e3e7cb4 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/msm_vb2/msm_vb2.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/msm_vb2/msm_vb2.c
+@@ -14,9 +14,9 @@
+ #include "msm_vb2.h"
+ 
+ static int msm_vb2_queue_setup(struct vb2_queue *q,
+-	const struct v4l2_format *fmt,
++//	const struct v4l2_format *fmt,
+ 	unsigned int *num_buffers, unsigned int *num_planes,
+-	unsigned int sizes[], void *alloc_ctxs[])
++	unsigned int sizes[], struct device *alloc_ctxs[])
+ {
+ 	int i;
+ 	struct msm_v4l2_format_data *data = NULL;
+@@ -54,6 +54,7 @@ static int msm_vb2_buf_init(struct vb2_buffer *vb)
+ 	struct msm_stream *stream;
+ 	struct msm_session *session;
+ 	struct msm_vb2_buffer *msm_vb2_buf;
++	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+ 	unsigned long rl_flags;
+ 
+ 	session = msm_get_session_from_vb2q(vb->vb2_queue);
+@@ -68,7 +69,7 @@ static int msm_vb2_buf_init(struct vb2_buffer *vb)
+ 		read_unlock_irqrestore(&session->stream_rwlock, rl_flags);
+ 		return -EINVAL;
+ 	}
+-	msm_vb2_buf = container_of(vb, struct msm_vb2_buffer, vb2_buf);
++	msm_vb2_buf = container_of(vbuf, struct msm_vb2_buffer, vb2_v4l2_buf);
+ 	msm_vb2_buf->in_freeq = 0;
+ 	read_unlock_irqrestore(&session->stream_rwlock, rl_flags);
+ 	return 0;
+@@ -80,8 +81,9 @@ static void msm_vb2_buf_queue(struct vb2_buffer *vb)
+ 	struct msm_stream *stream;
+ 	struct msm_session *session;
+ 	unsigned long flags, rl_flags;
++	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+ 
+-	msm_vb2 = container_of(vb, struct msm_vb2_buffer, vb2_buf);
++	msm_vb2 = container_of(vbuf, struct msm_vb2_buffer, vb2_v4l2_buf);
+ 
+ 	if (!msm_vb2) {
+ 		pr_err("%s:%d] vb2_buf NULL", __func__, __LINE__);
+@@ -114,8 +116,9 @@ static void msm_vb2_buf_finish(struct vb2_buffer *vb)
+ 	struct msm_session *session;
+ 	unsigned long flags, rl_flags;
+ 	struct msm_vb2_buffer *msm_vb2_entry, *temp;
++	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+ 
+-	msm_vb2 = container_of(vb, struct msm_vb2_buffer, vb2_buf);
++	msm_vb2 = container_of(vbuf, struct msm_vb2_buffer, vb2_v4l2_buf);
+ 
+ 	if (!msm_vb2) {
+ 		pr_err("%s:%d] vb2_buf NULL", __func__, __LINE__);
+@@ -154,7 +157,7 @@ static void msm_vb2_stop_stream(struct vb2_queue *q)
+ 	struct msm_stream *stream;
+ 	struct msm_session *session;
+ 	unsigned long flags, rl_flags;
+-	struct vb2_buffer *vb2_buf;
++	struct vb2_v4l2_buffer *vb2_v4l2_buf;
+ 
+ 	session = msm_get_session_from_vb2q(q);
+ 	if (IS_ERR_OR_NULL(session))
+@@ -177,10 +180,10 @@ static void msm_vb2_stop_stream(struct vb2_queue *q)
+ 	spin_lock_irqsave(&stream->stream_lock, flags);
+ 	list_for_each_entry_safe(msm_vb2, temp, &(stream->queued_list),
+ 		list) {
+-			vb2_buf = &(msm_vb2->vb2_buf);
+-			if (vb2_buf->state == VB2_BUF_STATE_DONE)
++			vb2_v4l2_buf = &(msm_vb2->vb2_v4l2_buf);
++			if (vb2_v4l2_buf->vb2_buf.state == VB2_BUF_STATE_DONE)
+ 				continue;
+-			vb2_buffer_done(vb2_buf, VB2_BUF_STATE_DONE);
++			vb2_buffer_done(&vb2_v4l2_buf->vb2_buf, VB2_BUF_STATE_DONE);
+ 			msm_vb2->in_freeq = 0;
+ 		}
+ 	spin_unlock_irqrestore(&stream->stream_lock, flags);
+@@ -220,10 +223,12 @@ struct vb2_ops *msm_vb2_get_q_ops(void)
+ 	return &msm_vb2_get_q_op;
+ }
+ 
+-static void *msm_vb2_dma_contig_get_userptr(void *alloc_ctx,
+-	unsigned long vaddr, unsigned long size, int write)
++static void *msm_vb2_dma_contig_get_userptr(struct device *alloc_ctx,
++	unsigned long vaddr, unsigned long size,
++	enum dma_data_direction dma_dir)
+ {
+ 	struct msm_vb2_private_data *priv;
++
+ 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+ 	if (!priv)
+ 		return ERR_PTR(-ENOMEM);
+@@ -254,12 +259,12 @@ static struct vb2_queue *msm_vb2_get_queue(int session_id,
+ 	return msm_get_stream_vb2q(session_id, stream_id);
+ }
+ 
+-static struct vb2_buffer *msm_vb2_get_buf(int session_id,
++static struct vb2_v4l2_buffer *msm_vb2_get_buf(int session_id,
+ 	unsigned int stream_id)
+ {
+ 	struct msm_stream *stream;
+-	struct vb2_buffer *vb2_buf = NULL;
+ 	struct msm_session *session;
++	struct vb2_v4l2_buffer *vb2_v4l2_buf = NULL;
+ 	struct msm_vb2_buffer *msm_vb2 = NULL;
+ 	unsigned long flags, rl_flags;
+ 
+@@ -283,8 +288,8 @@ static struct vb2_buffer *msm_vb2_get_buf(int session_id,
+ 	}
+ 
+ 	list_for_each_entry(msm_vb2, &(stream->queued_list), list) {
+-		vb2_buf = &(msm_vb2->vb2_buf);
+-		if (vb2_buf->state != VB2_BUF_STATE_ACTIVE)
++		vb2_v4l2_buf = &(msm_vb2->vb2_v4l2_buf);
++		if (vb2_v4l2_buf->vb2_buf.state != VB2_BUF_STATE_ACTIVE)
+ 			continue;
+ 
+ 		if (msm_vb2->in_freeq)
+@@ -294,19 +299,19 @@ static struct vb2_buffer *msm_vb2_get_buf(int session_id,
+ 		goto end;
+ 	}
+ 	msm_vb2 = NULL;
+-	vb2_buf = NULL;
++	vb2_v4l2_buf = NULL;
+ end:
+ 	spin_unlock_irqrestore(&stream->stream_lock, flags);
+ 	read_unlock_irqrestore(&session->stream_rwlock, rl_flags);
+-	return vb2_buf;
++	return vb2_v4l2_buf;
+ }
+ 
+-static struct vb2_buffer *msm_vb2_get_buf_by_idx(int session_id,
++static struct vb2_v4l2_buffer *msm_vb2_get_buf_by_idx(int session_id,
+ 	unsigned int stream_id, uint32_t index)
+ {
+ 	struct msm_stream *stream;
+-	struct vb2_buffer *vb2_buf = NULL;
+ 	struct msm_session *session;
++	struct vb2_v4l2_buffer *vb2_v4l2_buf = NULL;
+ 	struct msm_vb2_buffer *msm_vb2 = NULL;
+ 	unsigned long flags, rl_flags;
+ 
+@@ -331,29 +336,29 @@ static struct vb2_buffer *msm_vb2_get_buf_by_idx(int session_id,
+ 	}
+ 
+ 	list_for_each_entry(msm_vb2, &(stream->queued_list), list) {
+-		vb2_buf = &(msm_vb2->vb2_buf);
+-		if ((vb2_buf->v4l2_buf.index != index) || msm_vb2->in_freeq
+-			|| vb2_buf->state != VB2_BUF_STATE_ACTIVE)
++		vb2_v4l2_buf = &(msm_vb2->vb2_v4l2_buf);
++		if ((vb2_v4l2_buf->vb2_buf.index != index) || msm_vb2->in_freeq
++			|| vb2_v4l2_buf->vb2_buf.state != VB2_BUF_STATE_ACTIVE)
+ 			continue;
+ 
+ 		msm_vb2->in_freeq = 1;
+ 		goto end;
+ 	}
+ 	msm_vb2 = NULL;
+-	vb2_buf = NULL;
++	vb2_v4l2_buf = NULL;
+ end:
+ 	spin_unlock_irqrestore(&stream->stream_lock, flags);
+ 	read_unlock_irqrestore(&session->stream_rwlock, rl_flags);
+-	return vb2_buf;
++	return vb2_v4l2_buf;
+ }
+ 
+-static int msm_vb2_put_buf(struct vb2_buffer *vb, int session_id,
++static int msm_vb2_put_buf(struct vb2_v4l2_buffer *vb, int session_id,
+ 				unsigned int stream_id)
+ {
+ 	struct msm_stream *stream;
+ 	struct msm_session *session;
+ 	struct msm_vb2_buffer *msm_vb2;
+-	struct vb2_buffer *vb2_buf = NULL;
++	struct vb2_v4l2_buffer *vb2_v4l2_buf = NULL;
+ 	int rc = 0;
+ 	unsigned long flags, rl_flags;
+ 
+@@ -372,11 +377,11 @@ static int msm_vb2_put_buf(struct vb2_buffer *vb, int session_id,
+ 	spin_lock_irqsave(&stream->stream_lock, flags);
+ 	if (vb) {
+ 		list_for_each_entry(msm_vb2, &(stream->queued_list), list) {
+-			vb2_buf = &(msm_vb2->vb2_buf);
+-			if (vb2_buf == vb)
++			vb2_v4l2_buf = &(msm_vb2->vb2_v4l2_buf);
++			if (vb2_v4l2_buf == vb)
+ 				break;
+ 		}
+-		if (WARN_ON(vb2_buf != vb)) {
++		if (WARN_ON(vb2_v4l2_buf != vb)) {
+ 			pr_err("VB buffer is INVALID vb=%pK, ses_id=%d, str_id=%d\n",
+ 					vb, session_id, stream_id);
+ 			spin_unlock_irqrestore(&stream->stream_lock, flags);
+@@ -384,8 +389,8 @@ static int msm_vb2_put_buf(struct vb2_buffer *vb, int session_id,
+ 				rl_flags);
+ 			return -EINVAL;
+ 		}
+-		msm_vb2 =
+-			container_of(vb, struct msm_vb2_buffer, vb2_buf);
++		msm_vb2 = container_of(vb2_v4l2_buf, struct msm_vb2_buffer,
++				vb2_v4l2_buf);
+ 		if (msm_vb2->in_freeq) {
+ 			msm_vb2->in_freeq = 0;
+ 			rc = 0;
+@@ -401,15 +406,15 @@ static int msm_vb2_put_buf(struct vb2_buffer *vb, int session_id,
+ 	return rc;
+ }
+ 
+-static int msm_vb2_buf_done(struct vb2_buffer *vb, int session_id,
++static int msm_vb2_buf_done(struct vb2_v4l2_buffer *vb, int session_id,
+ 				unsigned int stream_id, uint32_t sequence,
+-				struct timeval *ts, uint32_t reserved)
++				struct timeval *ts, uint32_t buf_type)
+ {
+ 	unsigned long flags, rl_flags;
+ 	struct msm_vb2_buffer *msm_vb2;
+ 	struct msm_stream *stream;
+-	struct vb2_buffer *vb2_buf = NULL;
+ 	struct msm_session *session;
++	struct vb2_v4l2_buffer *vb2_v4l2_buf = NULL;
+ 	int rc = 0;
+ 
+ 	session = msm_get_session(session_id);
+@@ -427,11 +432,11 @@ static int msm_vb2_buf_done(struct vb2_buffer *vb, int session_id,
+ 	spin_lock_irqsave(&stream->stream_lock, flags);
+ 	if (vb) {
+ 		list_for_each_entry(msm_vb2, &(stream->queued_list), list) {
+-			vb2_buf = &(msm_vb2->vb2_buf);
+-			if (vb2_buf == vb)
+-				break;
++			vb2_v4l2_buf = &(msm_vb2->vb2_v4l2_buf);
++						if (vb2_v4l2_buf == vb)
++			break;
+ 		}
+-		if (WARN_ON(vb2_buf != vb)) {
++		if (WARN_ON(vb2_v4l2_buf  != vb)) {
+ 			pr_err("VB buffer is INVALID ses_id=%d, str_id=%d, vb=%pK\n",
+ 				    session_id, stream_id, vb);
+ 			spin_unlock_irqrestore(&stream->stream_lock, flags);
+@@ -440,13 +445,16 @@ static int msm_vb2_buf_done(struct vb2_buffer *vb, int session_id,
+ 			return -EINVAL;
+ 		}
+ 		msm_vb2 =
+-			container_of(vb, struct msm_vb2_buffer, vb2_buf);
++			container_of(vb2_v4l2_buf, struct msm_vb2_buffer,
++					vb2_v4l2_buf);
+ 		/* put buf before buf done */
+ 		if (msm_vb2->in_freeq) {
+-			vb->v4l2_buf.sequence = sequence;
+-			vb->v4l2_buf.timestamp = *ts;
+-			vb->v4l2_buf.reserved = reserved;
+-			vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
++			vb2_v4l2_buf->sequence = sequence;
++			vb2_v4l2_buf->timecode.type = buf_type;
++			vb2_v4l2_buf->vb2_buf.timestamp =
++							((u64)ts->tv_sec * 1000000 +
++							ts->tv_usec) * 1000;
++			vb2_buffer_done(&vb2_v4l2_buf->vb2_buf, VB2_BUF_STATE_DONE);
+ 			msm_vb2->in_freeq = 0;
+ 			rc = 0;
+ 		} else
+@@ -465,8 +473,8 @@ long msm_vb2_return_buf_by_idx(int session_id, unsigned int stream_id,
+ 				uint32_t index)
+ {
+ 	struct msm_stream *stream;
+-	struct vb2_buffer *vb2_buf = NULL;
+ 	struct msm_session *session;
++	struct vb2_v4l2_buffer *vb2_v4l2_buf = NULL;
+ 	struct msm_vb2_buffer *msm_vb2 = NULL;
+ 	unsigned long flags, rl_flags;
+ 	long rc = -EINVAL;
+@@ -491,18 +499,19 @@ long msm_vb2_return_buf_by_idx(int session_id, unsigned int stream_id,
+ 	}
+ 
+ 	list_for_each_entry(msm_vb2, &(stream->queued_list), list) {
+-		vb2_buf = &(msm_vb2->vb2_buf);
+-		if ((vb2_buf->v4l2_buf.index != index)
+-			|| vb2_buf->state != VB2_BUF_STATE_ACTIVE)
++		vb2_v4l2_buf = &(msm_vb2->vb2_v4l2_buf);
++		if ((vb2_v4l2_buf->vb2_buf.index != index)
++			|| vb2_v4l2_buf->vb2_buf.state != VB2_BUF_STATE_ACTIVE)
+ 			continue;
+ 
+ 		if (!msm_vb2->in_freeq) {
+-			vb2_buffer_done(vb2_buf, VB2_BUF_STATE_ERROR);
++			vb2_buffer_done(&vb2_v4l2_buf->vb2_buf,
++				VB2_BUF_STATE_ERROR);
+ 			rc = 0;
+-		} else
++		} else {
+ 			rc = -EINVAL;
+-
+-		goto end;
++		}
++		break;
+ 	}
+ 
+ end:
+@@ -517,8 +526,8 @@ static int msm_vb2_flush_buf(int session_id, unsigned int stream_id)
+ 	unsigned long flags, rl_flags;
+ 	struct msm_vb2_buffer *msm_vb2;
+ 	struct msm_stream *stream;
+-	struct vb2_buffer *vb2_buf = NULL;
+ 	struct msm_session *session;
++	struct vb2_v4l2_buffer *vb2_v4l2_buf = NULL;
+ 
+ 	session = msm_get_session(session_id);
+ 	if (IS_ERR_OR_NULL(session))
+@@ -534,9 +543,9 @@ static int msm_vb2_flush_buf(int session_id, unsigned int stream_id)
+ 
+ 	spin_lock_irqsave(&stream->stream_lock, flags);
+ 	list_for_each_entry(msm_vb2, &(stream->queued_list), list) {
+-		vb2_buf = &(msm_vb2->vb2_buf);
++		vb2_v4l2_buf = &(msm_vb2->vb2_v4l2_buf);
+ 		/* Do buf done for all buffers*/
+-		vb2_buffer_done(vb2_buf, VB2_BUF_STATE_DONE);
++		vb2_buffer_done(&vb2_v4l2_buf->vb2_buf, VB2_BUF_STATE_DONE);
+ 		msm_vb2->in_freeq = 0;
+ 	}
+ 	spin_unlock_irqrestore(&stream->stream_lock, flags);
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/msm_vb2/msm_vb2.h b/drivers/media/platform/msm/camera_v2-legacy/msm_vb2/msm_vb2.h
+index 20d2315602e9..59a5e2ea15e2 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/msm_vb2/msm_vb2.h
++++ b/drivers/media/platform/msm/camera_v2-legacy/msm_vb2/msm_vb2.h
+@@ -17,7 +17,6 @@
+ #include <linux/i2c.h>
+ #include <linux/videodev2.h>
+ #include <linux/pm_qos.h>
+-#include <linux/wakelock.h>
+ #include <linux/msm_ion.h>
+ #include <linux/iommu.h>
+ #include <media/v4l2-dev.h>
+@@ -38,7 +37,7 @@ struct msm_vb2_buffer {
+ 	 * because both v4l2 frameworks and driver directly
+ 	 * cast msm_vb2_buffer to a vb2_buf.
+ 	 */
+-	struct vb2_buffer vb2_buf;
++	struct vb2_v4l2_buffer vb2_v4l2_buf;
+ 	struct list_head list;
+ 	int in_freeq;
+ };
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/pproc/cpp/msm_cpp.c b/drivers/media/platform/msm/camera_v2-legacy/pproc/cpp/msm_cpp.c
+index 1db82340ac8a..23527bbf71cb 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/pproc/cpp/msm_cpp.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/pproc/cpp/msm_cpp.c
+@@ -4327,8 +4327,7 @@ static int cpp_probe(struct platform_device *pdev)
+ 	if (rc < 0)
+ 		goto bus_de_init;
+ 
+-	media_entity_init(&cpp_dev->msm_sd.sd.entity, 0, NULL, 0);
+-	cpp_dev->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
++	media_entity_pads_init(&cpp_dev->msm_sd.sd.entity, 0, NULL);
+ 	cpp_dev->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_CPP;
+ 	cpp_dev->msm_sd.sd.entity.name = pdev->name;
+ 	cpp_dev->msm_sd.close_seq = MSM_SD_CLOSE_3RD_CATEGORY;
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/actuator/msm_actuator.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/actuator/msm_actuator.c
+index d3e6e22e4e53..21598c427054 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/actuator/msm_actuator.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/actuator/msm_actuator.c
+@@ -1895,8 +1895,7 @@ static int32_t msm_actuator_i2c_probe(struct i2c_client *client,
+ 	v4l2_set_subdevdata(&act_ctrl_t->msm_sd.sd, act_ctrl_t);
+ 	act_ctrl_t->msm_sd.sd.internal_ops = &msm_actuator_internal_ops;
+ 	act_ctrl_t->msm_sd.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+-	media_entity_init(&act_ctrl_t->msm_sd.sd.entity, 0, NULL, 0);
+-	act_ctrl_t->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
++	media_entity_pads_init(&act_ctrl_t->msm_sd.sd.entity, 0, NULL);
+ 	act_ctrl_t->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_ACTUATOR;
+ 	act_ctrl_t->msm_sd.close_seq = MSM_SD_CLOSE_2ND_CATEGORY | 0x2;
+ 	msm_sd_register(&act_ctrl_t->msm_sd);
+@@ -2010,8 +2009,7 @@ static int32_t msm_actuator_platform_probe(struct platform_device *pdev)
+ 	msm_actuator_t->msm_sd.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+ 	snprintf(msm_actuator_t->msm_sd.sd.name,
+ 		ARRAY_SIZE(msm_actuator_t->msm_sd.sd.name), "msm_actuator");
+-	media_entity_init(&msm_actuator_t->msm_sd.sd.entity, 0, NULL, 0);
+-	msm_actuator_t->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
++	media_entity_pads_init(&msm_actuator_t->msm_sd.sd.entity, 0, NULL);
+ 	msm_actuator_t->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_ACTUATOR;
+ 	msm_actuator_t->msm_sd.close_seq = MSM_SD_CLOSE_2ND_CATEGORY | 0x2;
+ 	msm_sd_register(&msm_actuator_t->msm_sd);
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/csid/msm_csid.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/csid/msm_csid.c
+index e851c5600032..5a7d297f8a1b 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/csid/msm_csid.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/csid/msm_csid.c
+@@ -1102,8 +1102,7 @@ static int csid_probe(struct platform_device *pdev)
+ 	new_csid_dev->msm_sd.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+ 	snprintf(new_csid_dev->msm_sd.sd.name,
+ 			ARRAY_SIZE(new_csid_dev->msm_sd.sd.name), "msm_csid");
+-	media_entity_init(&new_csid_dev->msm_sd.sd.entity, 0, NULL, 0);
+-	new_csid_dev->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
++	media_entity_pads_init(&new_csid_dev->msm_sd.sd.entity, 0, NULL);
+ 	new_csid_dev->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_CSID;
+ 	new_csid_dev->msm_sd.close_seq = MSM_SD_CLOSE_2ND_CATEGORY | 0x5;
+ 	msm_sd_register(&new_csid_dev->msm_sd);
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/csiphy/msm_csiphy.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/csiphy/msm_csiphy.c
+index 91c69263090d..0b5d7361b09f 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/csiphy/msm_csiphy.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/csiphy/msm_csiphy.c
+@@ -1442,8 +1442,7 @@ static int csiphy_probe(struct platform_device *pdev)
+ 	new_csiphy_dev->msm_sd.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+ 	snprintf(new_csiphy_dev->msm_sd.sd.name,
+ 		ARRAY_SIZE(new_csiphy_dev->msm_sd.sd.name), "msm_csiphy");
+-	media_entity_init(&new_csiphy_dev->msm_sd.sd.entity, 0, NULL, 0);
+-	new_csiphy_dev->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
++	media_entity_pads_init(&new_csiphy_dev->msm_sd.sd.entity, 0, NULL);
+ 	new_csiphy_dev->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_CSIPHY;
+ 	new_csiphy_dev->msm_sd.close_seq = MSM_SD_CLOSE_2ND_CATEGORY | 0x4;
+ 	msm_sd_register(&new_csiphy_dev->msm_sd);
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/eeprom/msm_eeprom.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/eeprom/msm_eeprom.c
+index dd2f9192e32f..0320bbc2619a 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/eeprom/msm_eeprom.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/eeprom/msm_eeprom.c
+@@ -840,8 +840,7 @@ static int msm_eeprom_i2c_probe(struct i2c_client *client,
+ 	v4l2_set_subdevdata(&e_ctrl->msm_sd.sd, e_ctrl);
+ 	e_ctrl->msm_sd.sd.internal_ops = &msm_eeprom_internal_ops;
+ 	e_ctrl->msm_sd.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+-	media_entity_init(&e_ctrl->msm_sd.sd.entity, 0, NULL, 0);
+-	e_ctrl->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
++	media_entity_pads_init(&e_ctrl->msm_sd.sd.entity, 0, NULL);
+ 	e_ctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_EEPROM;
+ 	msm_sd_register(&e_ctrl->msm_sd);
+ 	CDBG("%s success result=%d X\n", __func__, rc);
+@@ -1202,8 +1201,7 @@ static int msm_eeprom_spi_setup(struct spi_device *spi)
+ 	v4l2_set_subdevdata(&e_ctrl->msm_sd.sd, e_ctrl);
+ 	e_ctrl->msm_sd.sd.internal_ops = &msm_eeprom_internal_ops;
+ 	e_ctrl->msm_sd.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+-	media_entity_init(&e_ctrl->msm_sd.sd.entity, 0, NULL, 0);
+-	e_ctrl->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
++	media_entity_pads_init(&e_ctrl->msm_sd.sd.entity, 0, NULL);
+ 	e_ctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_EEPROM;
+ 	msm_sd_register(&e_ctrl->msm_sd);
+ 	e_ctrl->is_supported = (e_ctrl->is_supported << 1) | 1;
+@@ -1744,8 +1742,7 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
+ 	e_ctrl->msm_sd.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+ 	snprintf(e_ctrl->msm_sd.sd.name,
+ 		ARRAY_SIZE(e_ctrl->msm_sd.sd.name), "msm_eeprom");
+-	media_entity_init(&e_ctrl->msm_sd.sd.entity, 0, NULL, 0);
+-	e_ctrl->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
++	media_entity_pads_init(&e_ctrl->msm_sd.sd.entity, 0, NULL);
+ 	e_ctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_EEPROM;
+ 	msm_sd_register(&e_ctrl->msm_sd);
+ 
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/flash/msm_flash.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/flash/msm_flash.c
+index 2a32a4a02287..4c7c6417d26b 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/flash/msm_flash.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/flash/msm_flash.c
+@@ -1181,8 +1181,7 @@ static int msm_camera_flash_i2c_probe(struct i2c_client *client,
+ 	snprintf(flash_ctrl->msm_sd.sd.name,
+ 		ARRAY_SIZE(flash_ctrl->msm_sd.sd.name),
+ 		"msm_camera_flash");
+-	media_entity_init(&flash_ctrl->msm_sd.sd.entity, 0, NULL, 0);
+-	flash_ctrl->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
++	media_entity_pads_init(&flash_ctrl->msm_sd.sd.entity, 0, NULL);
+ 	flash_ctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_FLASH;
+ 	flash_ctrl->msm_sd.close_seq = MSM_SD_CLOSE_2ND_CATEGORY | 0x1;
+ 	msm_sd_register(&flash_ctrl->msm_sd);
+@@ -1256,8 +1255,7 @@ static int32_t msm_flash_platform_probe(struct platform_device *pdev)
+ 	snprintf(flash_ctrl->msm_sd.sd.name,
+ 		ARRAY_SIZE(flash_ctrl->msm_sd.sd.name),
+ 		"msm_camera_flash");
+-	media_entity_init(&flash_ctrl->msm_sd.sd.entity, 0, NULL, 0);
+-	flash_ctrl->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
++	media_entity_pads_init(&flash_ctrl->msm_sd.sd.entity, 0, NULL);
+ 	flash_ctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_FLASH;
+ 	flash_ctrl->msm_sd.close_seq = MSM_SD_CLOSE_2ND_CATEGORY | 0x1;
+ 	msm_sd_register(&flash_ctrl->msm_sd);
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/flash/msm_led_flash.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/flash/msm_led_flash.c
+index 2d067a241884..cdafc5ff283c 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/flash/msm_led_flash.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/flash/msm_led_flash.c
+@@ -80,8 +80,7 @@ int32_t msm_led_flash_create_v4lsubdev(struct platform_device *pdev, void *data)
+ 	fctrl->msm_sd.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+ 	snprintf(fctrl->msm_sd.sd.name, ARRAY_SIZE(fctrl->msm_sd.sd.name),
+ 		"msm_flash");
+-	media_entity_init(&fctrl->msm_sd.sd.entity, 0, NULL, 0);
+-	fctrl->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
++	media_entity_pads_init(&fctrl->msm_sd.sd.entity, 0, NULL);
+ 	fctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_FLASH;
+ 	fctrl->msm_sd.close_seq = MSM_SD_CLOSE_2ND_CATEGORY | 0x1;
+ 	msm_sd_register(&fctrl->msm_sd);
+@@ -115,8 +114,7 @@ int32_t msm_led_i2c_flash_create_v4lsubdev(void *data)
+ 	fctrl->msm_sd.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+ 	snprintf(fctrl->msm_sd.sd.name, ARRAY_SIZE(fctrl->msm_sd.sd.name),
+ 		"msm_flash");
+-	media_entity_init(&fctrl->msm_sd.sd.entity, 0, NULL, 0);
+-	fctrl->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
++	media_entity_pads_init(&fctrl->msm_sd.sd.entity, 0, NULL);
+ 	fctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_LED_FLASH;
+ 	msm_sd_register(&fctrl->msm_sd);
+ 
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/ir_cut/msm_ir_cut.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/ir_cut/msm_ir_cut.c
+index 9a5023ac167f..93fd3d63d2e5 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/ir_cut/msm_ir_cut.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/ir_cut/msm_ir_cut.c
+@@ -597,8 +597,7 @@ static int32_t msm_ir_cut_platform_probe(struct platform_device *pdev)
+ 	snprintf(ir_cut_ctrl->msm_sd.sd.name,
+ 		ARRAY_SIZE(ir_cut_ctrl->msm_sd.sd.name),
+ 		"msm_camera_ir_cut");
+-	media_entity_init(&ir_cut_ctrl->msm_sd.sd.entity, 0, NULL, 0);
+-	ir_cut_ctrl->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
++	media_entity_pads_init(&ir_cut_ctrl->msm_sd.sd.entity, 0, NULL);
+ 	ir_cut_ctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_IR_CUT;
+ 	ir_cut_ctrl->msm_sd.close_seq = MSM_SD_CLOSE_2ND_CATEGORY | 0x1;
+ 	msm_sd_register(&ir_cut_ctrl->msm_sd);
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/ir_led/msm_ir_led.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/ir_led/msm_ir_led.c
+index fcbabf062202..82fde3be8794 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/ir_led/msm_ir_led.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/ir_led/msm_ir_led.c
+@@ -387,8 +387,7 @@ static int32_t msm_ir_led_platform_probe(struct platform_device *pdev)
+ 	snprintf(ir_led_ctrl->msm_sd.sd.name,
+ 		ARRAY_SIZE(ir_led_ctrl->msm_sd.sd.name),
+ 		"msm_camera_ir_led");
+-	media_entity_init(&ir_led_ctrl->msm_sd.sd.entity, 0, NULL, 0);
+-	ir_led_ctrl->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
++	media_entity_pads_init(&ir_led_ctrl->msm_sd.sd.entity, 0, NULL);
+ 	ir_led_ctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_IR_LED;
+ 	ir_led_ctrl->msm_sd.close_seq = MSM_SD_CLOSE_2ND_CATEGORY | 0x1;
+ 
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor.c
+index b0d521587193..2ea9a9f7dad7 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor.c
+@@ -1415,30 +1415,13 @@ static int msm_sensor_power(struct v4l2_subdev *sd, int on)
+ 	return rc;
+ }
+ 
+-static int msm_sensor_v4l2_enum_fmt(struct v4l2_subdev *sd,
+-	unsigned int index, enum v4l2_mbus_pixelcode *code)
+-{
+-	struct msm_sensor_ctrl_t *s_ctrl = get_sctrl(sd);
+-
+-	if ((unsigned int)index >= s_ctrl->sensor_v4l2_subdev_info_size)
+-		return -EINVAL;
+-
+-	*code = s_ctrl->sensor_v4l2_subdev_info[index].code;
+-	return 0;
+-}
+-
+ static struct v4l2_subdev_core_ops msm_sensor_subdev_core_ops = {
+ 	.ioctl = msm_sensor_subdev_ioctl,
+ 	.s_power = msm_sensor_power,
+ };
+ 
+-static struct v4l2_subdev_video_ops msm_sensor_subdev_video_ops = {
+-	.enum_mbus_fmt = msm_sensor_v4l2_enum_fmt,
+-};
+-
+ static struct v4l2_subdev_ops msm_sensor_subdev_ops = {
+ 	.core = &msm_sensor_subdev_core_ops,
+-	.video  = &msm_sensor_subdev_video_ops,
+ };
+ 
+ static struct msm_sensor_fn_t msm_sensor_func_tbl = {
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor_driver.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor_driver.c
+index 20d7b9f9b1cb..c6689742fccd 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor_driver.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor_driver.c
+@@ -71,7 +71,7 @@ static struct platform_driver msm_sensor_platform_driver = {
+ 
+ static struct v4l2_subdev_info msm_sensor_driver_subdev_info[] = {
+ 	{
+-		.code = V4L2_MBUS_FMT_SBGGR10_1X10,
++		.code = MEDIA_BUS_FMT_SBGGR10_1X10,
+ 		.colorspace = V4L2_COLORSPACE_JPEG,
+ 		.fmt = 1,
+ 		.order = 0,
+@@ -102,8 +102,7 @@ static int32_t msm_sensor_driver_create_i2c_v4l_subdev
+ 		s_ctrl->sensor_v4l2_subdev_ops);
+ 	v4l2_set_subdevdata(&s_ctrl->msm_sd.sd, client);
+ 	s_ctrl->msm_sd.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+-	media_entity_init(&s_ctrl->msm_sd.sd.entity, 0, NULL, 0);
+-	s_ctrl->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
++	media_entity_pads_init(&s_ctrl->msm_sd.sd.entity, 0, NULL);
+ 	s_ctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_SENSOR;
+ 	s_ctrl->msm_sd.sd.entity.name =	s_ctrl->msm_sd.sd.name;
+ 	s_ctrl->sensordata->sensor_info->session_id = session_id;
+@@ -147,8 +146,7 @@ static int32_t msm_sensor_driver_create_v4l_subdev
+ 		s_ctrl->sensordata->sensor_name);
+ 	v4l2_set_subdevdata(&s_ctrl->msm_sd.sd, s_ctrl->pdev);
+ 	s_ctrl->msm_sd.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+-	media_entity_init(&s_ctrl->msm_sd.sd.entity, 0, NULL, 0);
+-	s_ctrl->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
++	media_entity_pads_init(&s_ctrl->msm_sd.sd.entity, 0, NULL);
+ 	s_ctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_SENSOR;
+ 	s_ctrl->msm_sd.sd.entity.name = s_ctrl->msm_sd.sd.name;
+ 	s_ctrl->msm_sd.close_seq = MSM_SD_CLOSE_2ND_CATEGORY | 0x3;
+@@ -737,7 +735,12 @@ int32_t msm_sensor_driver_probe(void *setting,
+ 		slave_info->camera_id = slave_info32->camera_id;
+ 
+ 		slave_info->i2c_freq_mode = slave_info32->i2c_freq_mode;
+-		slave_info->sensor_id_info = slave_info32->sensor_id_info;
++		slave_info->sensor_id_info.sensor_id_reg_addr =
++			slave_info32->sensor_id_info.sensor_id_reg_addr;
++		slave_info->sensor_id_info.sensor_id_mask =
++			slave_info32->sensor_id_info.sensor_id_mask;
++		slave_info->sensor_id_info.sensor_id =
++				slave_info32->sensor_id_info.sensor_id;
+ 
+ 		slave_info->slave_addr = slave_info32->slave_addr;
+ 		slave_info->power_setting_array.size =
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor_init.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor_init.c
+index 9af43f4edb8d..b18fd7b708d2 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor_init.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor_init.c
+@@ -184,8 +184,7 @@ static int __init msm_sensor_init_module(void)
+ 	v4l2_set_subdevdata(&s_init->msm_sd.sd, s_init);
+ 	s_init->msm_sd.sd.internal_ops = &msm_sensor_init_internal_ops;
+ 	s_init->msm_sd.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+-	media_entity_init(&s_init->msm_sd.sd.entity, 0, NULL, 0);
+-	s_init->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
++	media_entity_pads_init(&s_init->msm_sd.sd.entity, 0, NULL);
+ 	s_init->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_SENSOR_INIT;
+ 	s_init->msm_sd.sd.entity.name = s_init->msm_sd.sd.name;
+ 	s_init->msm_sd.close_seq = MSM_SD_CLOSE_2ND_CATEGORY | 0x6;
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/ois/msm_ois.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/ois/msm_ois.c
+index 5a70eea3a00b..0452e78be5a8 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/ois/msm_ois.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/ois/msm_ois.c
+@@ -740,8 +740,7 @@ static int32_t msm_ois_i2c_probe(struct i2c_client *client,
+ 	v4l2_set_subdevdata(&ois_ctrl_t->msm_sd.sd, ois_ctrl_t);
+ 	ois_ctrl_t->msm_sd.sd.internal_ops = &msm_ois_internal_ops;
+ 	ois_ctrl_t->msm_sd.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+-	media_entity_init(&ois_ctrl_t->msm_sd.sd.entity, 0, NULL, 0);
+-	ois_ctrl_t->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
++	media_entity_pads_init(&ois_ctrl_t->msm_sd.sd.entity, 0, NULL);
+ 	ois_ctrl_t->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_OIS;
+ 	ois_ctrl_t->msm_sd.close_seq = MSM_SD_CLOSE_2ND_CATEGORY | 0x2;
+ 	msm_sd_register(&ois_ctrl_t->msm_sd);
+@@ -933,8 +932,7 @@ static int32_t msm_ois_platform_probe(struct platform_device *pdev)
+ 	msm_ois_t->msm_sd.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+ 	snprintf(msm_ois_t->msm_sd.sd.name,
+ 		ARRAY_SIZE(msm_ois_t->msm_sd.sd.name), "msm_ois");
+-	media_entity_init(&msm_ois_t->msm_sd.sd.entity, 0, NULL, 0);
+-	msm_ois_t->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
++	media_entity_pads_init(&msm_ois_t->msm_sd.sd.entity, 0, NULL);
+ 	msm_ois_t->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_OIS;
+ 	msm_ois_t->msm_sd.close_seq = MSM_SD_CLOSE_2ND_CATEGORY | 0x2;
+ 	msm_sd_register(&msm_ois_t->msm_sd);
+diff --git a/include/media/msmb_isp-legacy.h b/include/media/msmb_isp-legacy.h
+index 257378fc1082..1cf53da3752b 100644
+--- a/include/media/msmb_isp-legacy.h
++++ b/include/media/msmb_isp-legacy.h
+@@ -41,5 +41,13 @@ struct msm_isp32_event_data32 {
+ 	} u;
+ };
+ 
++#endif
++#ifdef CONFIG_MSM_AVTIMER
++struct avtimer_fptr_t {
++	int (*fptr_avtimer_open)(void);
++	int (*fptr_avtimer_enable)(int enable);
++	int (*fptr_avtimer_get_time)(uint64_t *avtimer_tick);
++};
++void msm_isp_set_avtimer_fptr(struct avtimer_fptr_t avtimer_func);
+ #endif
+ #endif /* __MSMB_ISP__ */
+diff --git a/include/soc/qcom/camera2-legacy.h b/include/soc/qcom/camera2-legacy.h
+index 49a5a0564109..9c6783001cd1 100644
+--- a/include/soc/qcom/camera2-legacy.h
++++ b/include/soc/qcom/camera2-legacy.h
+@@ -68,7 +68,7 @@ struct msm_cam_clk_setting {
+ };
+ 
+ struct v4l2_subdev_info {
+-	enum v4l2_mbus_pixelcode code;
++	uint32_t code;
+ 	enum v4l2_colorspace colorspace;
+ 	uint16_t fmt;
+ 	uint16_t order;
+-- 
+2.20.1
+

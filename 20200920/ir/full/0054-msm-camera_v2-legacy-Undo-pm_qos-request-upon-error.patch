@@ -1,0 +1,31 @@
+From 3668a49b781447a1aba11ccbe0dee6575fc954f4 Mon Sep 17 00:00:00 2001
+From: Sultan Alsawaf <sultan@kerneltoast.com>
+Date: Mon, 27 May 2019 19:20:42 -0700
+Subject: [PATCH 54/88] msm: camera_v2-legacy: Undo pm_qos request upon error
+
+If anything after msm_pm_qos_update_request(CAMERA_DISABLE_PC_LATENCY)
+fails, the pm_qos request won't be undone and will waste power. Make
+sure it gets unset in the error path to fix this.
+
+Signed-off-by: Sultan Alsawaf <sultan@kerneltoast.com>
+Signed-off-by: Lau <laststandrighthere@gmail.com>
+Signed-off-by: Albert I <kras@raphielgang.org>
+---
+ drivers/media/platform/msm/camera_v2-legacy/camera/camera.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/camera/camera.c b/drivers/media/platform/msm/camera_v2-legacy/camera/camera.c
+index aa04f1c02f3b..e81bbd55175a 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/camera/camera.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/camera/camera.c
+@@ -725,6 +725,7 @@ static int camera_v4l2_open(struct file *filep)
+ command_ack_q_fail:
+ 	msm_destroy_session(pvdev->vdev->num);
+ session_fail:
++	msm_pm_qos_update_request(CAMERA_ENABLE_PC_LATENCY);
+ 	pm_relax(&pvdev->vdev->dev);
+ stream_fail:
+ 	camera_v4l2_vb2_q_release(filep);
+-- 
+2.20.1
+

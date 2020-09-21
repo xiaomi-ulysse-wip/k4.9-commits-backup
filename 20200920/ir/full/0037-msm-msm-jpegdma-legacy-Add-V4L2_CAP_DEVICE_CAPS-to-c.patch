@@ -1,0 +1,49 @@
+From 3c8516e577726843cc72a98fa40e705ed9888a25 Mon Sep 17 00:00:00 2001
+From: ix5 <ix5@users.noreply.github.com>
+Date: Mon, 4 Mar 2019 14:18:13 +0100
+Subject: [PATCH 37/88] msm: msm-jpegdma-legacy: Add V4L2_CAP_DEVICE_CAPS to
+ caps
+
+See v4l_querycap() in v4l2-ioctl.c
+Otherwise the query fails with a crash:
+
+[...]
+Bad caps for driver msm_jpegdma, 4200003 0
+------------[ cut here ]------------
+WARNING: CPU: 1 PID: 23782 at v4l_querycap+0x90/0xd4
+Modules linked in:
+CPU: 1 PID: 23782 Comm: ExtCamHotPlug Tainted: G W 4.9.154-gb61c5e1840de-dirty #23
+Hardware name: SoMC Kagura-ROW (DT)
+task  ffffffc037b85e80 task.stack: ffffffc0b7188000
+PC is at v4l_querycap+0x90/0xd4
+LR is at v4l_querycap+0x90/0xd4
+[...]
+
+Signed-off-by: ix5 <ix5@users.noreply.github.com>
+Signed-off-by: Angelo G. Del Regno <kholk11@gmail.com>
+
+Signed-off-by: Lau <laststandrighthere@gmail.com>
+Signed-off-by: Albert I <kras@raphielgang.org>
+---
+ .../msm/camera_v2-legacy/jpeg_dma/msm_jpeg_dma_dev.c         | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/jpeg_dma/msm_jpeg_dma_dev.c b/drivers/media/platform/msm/camera_v2-legacy/jpeg_dma/msm_jpeg_dma_dev.c
+index 405b8dc46095..a1b1f678099f 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/jpeg_dma/msm_jpeg_dma_dev.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/jpeg_dma/msm_jpeg_dma_dev.c
+@@ -580,8 +580,9 @@ static int msm_jpegdma_querycap(struct file *file,
+ 	cap->bus_info[0] = 0;
+ 	strlcpy(cap->driver, MSM_JPEGDMA_DRV_NAME, sizeof(cap->driver));
+ 	strlcpy(cap->card, MSM_JPEGDMA_DRV_NAME, sizeof(cap->card));
+-	cap->capabilities = V4L2_CAP_STREAMING |
+-		V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_VIDEO_CAPTURE;
++	cap->device_caps = V4L2_CAP_STREAMING |
++			V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_VIDEO_CAPTURE;
++	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
+ 
+ 	return 0;
+ }
+-- 
+2.20.1
+

@@ -1,0 +1,24 @@
+From 6eb2545e85acef04c87beb2b0aa09d640b01685c Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Mon, 7 Sep 2020 23:01:49 +0800
+Subject: [PATCH 019/100] ARM64: dts: ulysse: Enable gt9xx (v2.8) gestures
+
+---
+ arch/arm64/boot/dts/qcom/ulysse-common/common-touchscreen.dtsi | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/ulysse-common/common-touchscreen.dtsi b/arch/arm64/boot/dts/qcom/ulysse-common/common-touchscreen.dtsi
+index 32bed3263d84..87dec27dbd98 100644
+--- a/arch/arm64/boot/dts/qcom/ulysse-common/common-touchscreen.dtsi
++++ b/arch/arm64/boot/dts/qcom/ulysse-common/common-touchscreen.dtsi
+@@ -81,6 +81,7 @@
+             00 00 00 00 00 00 EC 01
+             ];
+ 		touchscreen-key-map = <139 172 158>;
++		goodix,slide-wakeup = <1>;
+         };
+ 
+         focaltech@38{
+-- 
+2.20.1
+

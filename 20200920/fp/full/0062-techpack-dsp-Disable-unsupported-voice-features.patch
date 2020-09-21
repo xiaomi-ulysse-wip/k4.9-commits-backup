@@ -1,0 +1,106 @@
+From 7be0d6a50a03b7ac77b960602cfebf1fc0b7c16c Mon Sep 17 00:00:00 2001
+From: Artem Borisov <dedsa2002@gmail.com>
+Date: Tue, 6 Nov 2018 15:15:48 +0400
+Subject: [PATCH 062/100] techpack: dsp: Disable unsupported voice features
+
+Our ADSP firmware is not ready for this.
+
+Signed-off-by: Albert I <kras@raphielgang.org>
+---
+ techpack/audio/asoc/msm-pcm-q6-v2.c |  8 ++++----
+ techpack/audio/dsp/q6voice.c        | 10 +++++++++-
+ 2 files changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/techpack/audio/asoc/msm-pcm-q6-v2.c b/techpack/audio/asoc/msm-pcm-q6-v2.c
+index 6cf0ac4cb578..ec9b46e7e80f 100644
+--- a/techpack/audio/asoc/msm-pcm-q6-v2.c
++++ b/techpack/audio/asoc/msm-pcm-q6-v2.c
+@@ -387,7 +387,7 @@ static int msm_pcm_playback_prepare(struct snd_pcm_substream *substream)
+ 			return -ENOMEM;
+ 		}
+ 	} else {
+-#if (defined CONFIG_MACH_XIAOMI_SANTONI)
++#if (defined CONFIG_MACH_XIAOMI_ULYSSE)
+ 		ret = q6asm_open_write_v3(prtd->audio_client,
+ 			fmt_type, bits_per_sample);
+ #else
+@@ -440,7 +440,7 @@ static int msm_pcm_playback_prepare(struct snd_pcm_substream *substream)
+ 			prtd->channel_map, bits_per_sample);
+ 	} else {
+ 
+-#if (defined CONFIG_MACH_XIAOMI_SANTONI)
++#if (defined CONFIG_MACH_XIAOMI_ULYSSE)
+ 		ret = q6asm_media_format_block_multi_ch_pcm_v3(
+ 				prtd->audio_client, runtime->rate,
+ 				runtime->channels, !prtd->set_channel_map,
+@@ -524,7 +524,7 @@ static int msm_pcm_capture_prepare(struct snd_pcm_substream *substream)
+ 				__func__, params_channels(params),
+ 				prtd->audio_client->perf_mode);
+ 
+-#if (defined CONFIG_MACH_XIAOMI_SANTONI)
++#if (defined CONFIG_MACH_XIAOMI_ULYSSE)
+ 		ret = q6asm_open_read_v3(prtd->audio_client, FORMAT_LINEAR_PCM,
+ 				bits_per_sample);
+ #else
+@@ -606,7 +606,7 @@ static int msm_pcm_capture_prepare(struct snd_pcm_substream *substream)
+ 			__func__, prtd->samp_rate, prtd->channel_mode,
+ 			bits_per_sample, sample_word_size);
+ 
+-#if (defined CONFIG_MACH_XIAOMI_SANTONI)
++#if (defined CONFIG_MACH_XIAOMI_ULYSSE)
+ 	ret = q6asm_enc_cfg_blk_pcm_format_support_v3(prtd->audio_client,
+ 						      prtd->samp_rate,
+ 						      prtd->channel_mode,
+diff --git a/techpack/audio/dsp/q6voice.c b/techpack/audio/dsp/q6voice.c
+index 49f77ff98d3c..8ddc2438010a 100644
+--- a/techpack/audio/dsp/q6voice.c
++++ b/techpack/audio/dsp/q6voice.c
+@@ -96,8 +96,10 @@ static int voice_send_cvp_topology_commit_cmd(struct voice_data *v);
+ static int voice_send_cvp_channel_info_cmd(struct voice_data *v);
+ static int voice_send_cvp_channel_info_v2(struct voice_data *v,
+ 					  uint32_t param_type);
+-static int voice_get_avcs_version_per_service(uint32_t service_id);
+ 
++#if !(defined CONFIG_MACH_XIAOMI_ULYSSE)
++static int voice_get_avcs_version_per_service(uint32_t service_id);
++#endif
+ 
+ static int voice_cvs_stop_playback(struct voice_data *v);
+ static int voice_cvs_start_playback(struct voice_data *v);
+@@ -4344,6 +4346,7 @@ static int voice_send_cvp_mfc_config_cmd(struct voice_data *v)
+ 	return ret;
+ }
+ 
++#if !(defined CONFIG_MACH_XIAOMI_ULYSSE)
+ static int voice_get_avcs_version_per_service(uint32_t service_id)
+ {
+ 	int ret = 0;
+@@ -4372,6 +4375,7 @@ static int voice_get_avcs_version_per_service(uint32_t service_id)
+ 	kfree(ver_info);
+ 	return ret;
+ }
++#endif
+ 
+ static void voice_mic_break_work_fn(struct work_struct *work)
+ {
+@@ -4400,6 +4404,7 @@ static int voice_setup_vocproc(struct voice_data *v)
+ 		goto fail;
+ 	}
+ 
++#if !(defined CONFIG_MACH_XIAOMI_ULYSSE)
+ 	if (common.is_avcs_version_queried == false)
+ 		common.cvp_version = voice_get_avcs_version_per_service(
+ 				     APRV2_IDS_SERVICE_ID_ADSP_CVP_V);
+@@ -4413,6 +4418,9 @@ static int voice_setup_vocproc(struct voice_data *v)
+ 	pr_debug("%s: CVP Version %d\n", __func__, common.cvp_version);
+ 
+ 	ret = voice_send_cvp_media_fmt_info_cmd(v);
++#else
++	ret = voice_send_cvp_device_channels_cmd(v);
++#endif
+ 	if (ret < 0) {
+ 		pr_err("%s: Set media format info failed err:%d\n", __func__,
+ 		       ret);
+-- 
+2.20.1
+

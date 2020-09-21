@@ -1,0 +1,25 @@
+From c89c250413ad6302ce34b50c3b38a15034e33e84 Mon Sep 17 00:00:00 2001
+From: "R. Adi Permana" <romadhonadipermana279f@gmail.com>
+Date: Sat, 19 Sep 2020 14:07:24 +0000
+Subject: [PATCH 097/100] ARM64: defconfig: ulysse: Disable CONFIG_FPR_FPC
+
+---
+ arch/arm64/configs/ulysse_defconfig | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm64/configs/ulysse_defconfig b/arch/arm64/configs/ulysse_defconfig
+index ef886333dbfa..59942bbaca5e 100644
+--- a/arch/arm64/configs/ulysse_defconfig
++++ b/arch/arm64/configs/ulysse_defconfig
+@@ -253,7 +253,7 @@ CONFIG_BLK_DEV_RAM_SIZE=8192
+ CONFIG_HDCP_QSEECOM=y
+ CONFIG_QSEECOM=y
+ CONFIG_UID_SYS_STATS=y
+-CONFIG_FPR_FPC=y
++# CONFIG_FPR_FPC is not set
+ CONFIG_SCSI=y
+ CONFIG_BLK_DEV_SD=y
+ CONFIG_CHR_DEV_SG=y
+-- 
+2.20.1
+

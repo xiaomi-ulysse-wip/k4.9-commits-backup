@@ -1,0 +1,109 @@
+From 4a2e0746392dc06dedd18e1e7b82a1b6af39a4e7 Mon Sep 17 00:00:00 2001
+From: "Angelo G. Del Regno" <kholk11@gmail.com>
+Date: Wed, 13 Jun 2018 12:10:29 +0200
+Subject: [PATCH 080/100] techpack: audio: DSP: Force V3 functions for legacy
+ ADSP
+
+The drivers are sometimes calling the V4 functions directly for
+some monkey reason...
+This makes the DSP to go completely nuts on older platforms,
+since the firmware is not updated to support the V4 functions.
+
+To address this, even if - okay, it's ugly - add ifdefs to force
+calling the corresponding V3 functions: this makes sure that we
+won't get breakage from random CAF tags upgrades and such.
+
+Signed-off-by: Jacob Deepu <d2jdeepu@gmail.com>
+---
+ techpack/audio/dsp/q6asm.c | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)
+
+diff --git a/techpack/audio/dsp/q6asm.c b/techpack/audio/dsp/q6asm.c
+index 20d4bd9c9649..9699ab754db8 100644
+--- a/techpack/audio/dsp/q6asm.c
++++ b/techpack/audio/dsp/q6asm.c
+@@ -2984,6 +2984,9 @@ EXPORT_SYMBOL(q6asm_open_read_v3);
+ int q6asm_open_read_v4(struct audio_client *ac, uint32_t format,
+ 			uint16_t bits_per_sample, bool ts_mode)
+ {
++#if 1
++	return q6asm_open_read_v3(ac, format, bits_per_sample);
++#endif
+ 	return __q6asm_open_read(ac, format, bits_per_sample,
+ 				 PCM_MEDIA_FORMAT_V4 /*media fmt block ver*/,
+ 				 ts_mode);
+@@ -3323,6 +3326,9 @@ EXPORT_SYMBOL(q6asm_open_write_v3);
+ int q6asm_open_write_v4(struct audio_client *ac, uint32_t format,
+ 			uint16_t bits_per_sample)
+ {
++#if 1
++	return q6asm_open_write_v3(ac, format, bits_per_sample);
++#endif
+ 	return __q6asm_open_write(ac, format, bits_per_sample,
+ 				  ac->stream_id, false /*gapless*/,
+ 				  PCM_MEDIA_FORMAT_V4 /*pcm_format_block_ver*/);
+@@ -3387,6 +3393,10 @@ int q6asm_stream_open_write_v4(struct audio_client *ac, uint32_t format,
+ 			       uint16_t bits_per_sample, int32_t stream_id,
+ 			       bool is_gapless_mode)
+ {
++#if 1
++	return q6asm_stream_open_write_v3(ac, format, bits_per_sample,
++						stream_id, is_gapless_mode);
++#endif
+ 	return __q6asm_open_write(ac, format, bits_per_sample,
+ 				  stream_id, is_gapless_mode,
+ 				  PCM_MEDIA_FORMAT_V4 /*pcm_format_block_ver*/);
+@@ -4561,6 +4571,12 @@ int q6asm_set_encdec_chan_map(struct audio_client *ac,
+ }
+ EXPORT_SYMBOL(q6asm_set_encdec_chan_map);
+ 
++int q6asm_enc_cfg_blk_pcm_v3(struct audio_client *ac,
++			     uint32_t rate, uint32_t channels,
++			     uint16_t bits_per_sample, bool use_default_chmap,
++			     bool use_back_flavor, u8 *channel_map,
++			     uint16_t sample_word_size);
++
+ /*
+  * q6asm_enc_cfg_blk_pcm_v5 - sends encoder configuration parameters
+  *
+@@ -4696,6 +4712,12 @@ int q6asm_enc_cfg_blk_pcm_v4(struct audio_client *ac,
+ 	u32 frames_per_buf = 0;
+ 	int rc;
+ 
++#if 1
++	return q6asm_enc_cfg_blk_pcm_v3(ac, rate, channels, bits_per_sample,
++					use_default_chmap, use_back_flavor,
++					channel_map, sample_word_size);
++#endif
++
+ 	if (!use_default_chmap && (channel_map == NULL)) {
+ 		pr_err("%s: No valid chan map and can't use default\n",
+ 				__func__);
+@@ -6225,6 +6247,12 @@ int q6asm_media_format_block_pcm_format_support_v4(struct audio_client *ac,
+ 						   uint16_t endianness,
+ 						   uint16_t mode)
+ {
++#if 1
++	return q6asm_media_format_block_pcm_format_support_v3(ac, rate, channels,
++				bits_per_sample, stream_id,
++				use_default_chmap, channel_map,
++				sample_word_size);
++#endif
+ 	if (!use_default_chmap && (channel_map == NULL)) {
+ 		pr_err("%s: No valid chan map and can't use default\n",
+ 			__func__);
+@@ -6649,6 +6677,11 @@ int q6asm_media_format_block_multi_ch_pcm_v4(struct audio_client *ac,
+ 					     uint16_t endianness,
+ 					     uint16_t mode)
+ {
++#if 1
++	return q6asm_media_format_block_multi_ch_pcm_v3(ac, rate, channels,
++				use_default_chmap, channel_map,
++				bits_per_sample, sample_word_size);
++#endif
+ 	return __q6asm_media_format_block_multi_ch_pcm_v4(ac, rate, channels,
+ 							  use_default_chmap,
+ 							  channel_map,
+-- 
+2.20.1
+

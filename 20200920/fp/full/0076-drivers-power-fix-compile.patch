@@ -1,0 +1,46 @@
+From b3e4b83d4e086f1b877d65f051c4edc1e73e6310 Mon Sep 17 00:00:00 2001
+From: soekarnohatta <nayefhaidir@outlook.co.id>
+Date: Fri, 8 May 2020 04:54:53 +0700
+Subject: [PATCH 076/100] drivers: power: fix compile
+
+Signed-off-by: soekarnohatta <nayefhaidir@outlook.co.id>
+---
+ drivers/power/reset/msm-poweroff.c  | 4 ++--
+ drivers/power/supply/qcom/qpnp-fg.c | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/power/reset/msm-poweroff.c b/drivers/power/reset/msm-poweroff.c
+index b20b83f2ff2d..1fc62ec890fc 100644
+--- a/drivers/power/reset/msm-poweroff.c
++++ b/drivers/power/reset/msm-poweroff.c
+@@ -64,12 +64,12 @@ static bool force_warm_reboot;
+  * There is no API from TZ to re-enable the registers.
+  * So the SDI cannot be re-enabled when it already by-passed.
+  */
+-static int download_mode = 0;
++int download_mode = 0;
+ #else
+ static const int download_mode;
+ #endif
+ 
+-static int in_panic;
++int in_panic = 0;
+ 
+ static int panic_prep_restart(struct notifier_block *this,
+ 			      unsigned long event, void *ptr)
+diff --git a/drivers/power/supply/qcom/qpnp-fg.c b/drivers/power/supply/qcom/qpnp-fg.c
+index 386ef3f8e9a5..2f5f24819b2e 100644
+--- a/drivers/power/supply/qcom/qpnp-fg.c
++++ b/drivers/power/supply/qcom/qpnp-fg.c
+@@ -6447,7 +6447,7 @@ static int fg_batt_profile_init(struct fg_chip *chip)
+ 				&chip->cc_cv_threshold_mv);
+ 	}
+ 
+-	if (!of_find_property(chip->spmi->dev.of_node,
++	if (!of_find_property(chip->dev->of_node,
+ 				"qcom,thermal-coefficients", NULL)) {
+ 		data = of_get_property(profile_node,
+ 				"qcom,thermal-coefficients", &len);
+-- 
+2.20.1
+

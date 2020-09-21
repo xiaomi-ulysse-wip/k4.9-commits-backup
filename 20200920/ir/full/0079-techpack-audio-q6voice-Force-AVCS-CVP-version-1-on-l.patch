@@ -1,0 +1,57 @@
+From 3a175f6e355449100e59a503d73a927fe0c36bc7 Mon Sep 17 00:00:00 2001
+From: "Angelo G. Del Regno" <kholk11@gmail.com>
+Date: Wed, 1 Aug 2018 21:55:21 +0200
+Subject: [PATCH 79/88] techpack: audio: q6voice: Force AVCS CVP version 1 on
+ legacy ADSP
+
+Force the AVCS version to CVP_VERSION_1 for all of the AVCS
+services on all legacy ADSP firmwares: these ones cannot execute
+the Q6 Service Version command on their Q6 DSP because of older
+firmware not supporting it.
+We know that for the old firmware the version is always 1, hence
+forcing it is totally safe.
+
+Signed-off-by: Jacob Deepu <d2jdeepu@gmail.com>
+---
+ techpack/audio/dsp/q6voice.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/techpack/audio/dsp/q6voice.c b/techpack/audio/dsp/q6voice.c
+index 8ddc2438010a..0f643de3446e 100644
+--- a/techpack/audio/dsp/q6voice.c
++++ b/techpack/audio/dsp/q6voice.c
+@@ -38,6 +38,7 @@
+ #define NUM_CHANNELS_STEREO 2
+ #define NUM_CHANNELS_THREE 3
+ #define NUM_CHANNELS_QUAD 4
++#define CVP_VERSION_1 1
+ #define CVP_VERSION_2 2
+ #define GAIN_Q14_FORMAT(a) (a << 14)
+ 
+@@ -4349,6 +4350,15 @@ static int voice_send_cvp_mfc_config_cmd(struct voice_data *v)
+ #if !(defined CONFIG_MACH_XIAOMI_ULYSSE)
+ static int voice_get_avcs_version_per_service(uint32_t service_id)
+ {
++#if 1
++	if (service_id == AVCS_SERVICE_ID_ALL) {
++		pr_err("%s: Invalid service id: %d", __func__,
++		       AVCS_SERVICE_ID_ALL);
++		return -EINVAL;
++	}
++	common.is_avcs_version_queried = true;
++	return CVP_VERSION_1;
++#else
+ 	int ret = 0;
+ 	size_t ver_size;
+ 	struct avcs_fwk_ver_info *ver_info = NULL;
+@@ -4374,6 +4384,7 @@ static int voice_get_avcs_version_per_service(uint32_t service_id)
+ done:
+ 	kfree(ver_info);
+ 	return ret;
++#endif
+ }
+ #endif
+ 
+-- 
+2.20.1
+

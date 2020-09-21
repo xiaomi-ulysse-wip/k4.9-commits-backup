@@ -1,0 +1,55 @@
+From 77fbf75c8229f2b27e6c16a7450bb1fc341390c8 Mon Sep 17 00:00:00 2001
+From: Nathan Chancellor <natechancellor@gmail.com>
+Date: Thu, 26 Sep 2019 22:52:02 -0700
+Subject: [PATCH 042/100] msm: camera-legacy: Remove pointless NULL checks in
+ {__,}msm_remove_session_cmd_ack_q
+
+Clang warns:
+
+../drivers/media/platform/msm/camera_v2-legacy/msm.c:615:18: warning: address
+of 'cmd_ack->command_q' will always evaluate to 'true'
+[-Wpointer-bool-conversion]
+        if (!(&cmd_ack->command_q))
+            ~  ~~~~~~~~~^~~~~~~~~
+../drivers/media/platform/msm/camera_v2-legacy/msm.c:625:32: warning: address
+of 'session->command_ack_q' will always evaluate to 'true'
+[-Wpointer-bool-conversion]
+        if ((!session) || !(&session->command_ack_q))
+                          ~  ~~~~~~~~~^~~~~~~~~~~~~
+2 warnings generated.
+
+This matches what is present in msm-4.14.
+
+Fixes: a80ac0113b03 ("msm: camera: Add initial commit for camera drivers on 3.18")
+Signed-off-by: Nathan Chancellor <natechancellor@gmail.com>
+Signed-off-by: Albert I <kras@raphielgang.org>
+---
+ drivers/media/platform/msm/camera_v2-legacy/msm.c | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/msm.c b/drivers/media/platform/msm/camera_v2-legacy/msm.c
+index 5f117d453471..c2c8f88bed80 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/msm.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/msm.c
+@@ -612,9 +612,6 @@ static inline int __msm_remove_session_cmd_ack_q(void *d1, void *d2)
+ {
+ 	struct msm_command_ack *cmd_ack = d1;
+ 
+-	if (!(&cmd_ack->command_q))
+-		return 0;
+-
+ 	msm_queue_drain(&cmd_ack->command_q, struct msm_command, list);
+ 
+ 	return 0;
+@@ -622,7 +619,7 @@ static inline int __msm_remove_session_cmd_ack_q(void *d1, void *d2)
+ 
+ static void msm_remove_session_cmd_ack_q(struct msm_session *session)
+ {
+-	if ((!session) || !(&session->command_ack_q))
++	if (!session)
+ 		return;
+ 
+ 	mutex_lock(&session->lock);
+-- 
+2.20.1
+

@@ -1,0 +1,55 @@
+From 1cadf8a05a97f1b4e93f917d89b225928d8d9383 Mon Sep 17 00:00:00 2001
+From: Artem Borisov <dedsa2002@gmail.com>
+Date: Mon, 29 Oct 2018 13:41:04 +0400
+Subject: [PATCH 64/88] techpack: Fix the module init sequence
+
+Fixes panics when built-in.
+
+Change-Id: I095d00d9623d16b413533749bcc1d31df63a4e1c
+---
+ techpack/audio/dsp/audio_calibration.c | 2 ++
+ techpack/audio/dsp/q6_init.c           | 1 -
+ techpack/audio/soc/soundwire.c         | 2 +-
+ 3 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/techpack/audio/dsp/audio_calibration.c b/techpack/audio/dsp/audio_calibration.c
+index c895fa788315..008532f74f75 100644
+--- a/techpack/audio/dsp/audio_calibration.c
++++ b/techpack/audio/dsp/audio_calibration.c
+@@ -630,6 +630,8 @@ void audio_cal_exit(void)
+ 	misc_deregister(&audio_cal_misc);
+ }
+ 
++subsys_initcall(audio_cal_init);
++module_exit(audio_cal_exit);
+ 
+ MODULE_DESCRIPTION("SoC QDSP6v2 Audio Calibration driver");
+ MODULE_LICENSE("GPL v2");
+diff --git a/techpack/audio/dsp/q6_init.c b/techpack/audio/dsp/q6_init.c
+index 3b885dcb9095..0302e2716b15 100644
+--- a/techpack/audio/dsp/q6_init.c
++++ b/techpack/audio/dsp/q6_init.c
+@@ -19,7 +19,6 @@ GNU General Public License for more details.
+ static int __init audio_q6_init(void)
+ {
+ 	adsp_err_init();
+-	audio_cal_init();
+ 	rtac_init();
+ 	adm_init();
+ 	afe_init();
+diff --git a/techpack/audio/soc/soundwire.c b/techpack/audio/soc/soundwire.c
+index 69a9ed478183..ad2487e23043 100644
+--- a/techpack/audio/soc/soundwire.c
++++ b/techpack/audio/soc/soundwire.c
+@@ -1026,7 +1026,7 @@ static int __init soundwire_init(void)
+ 
+ 	return retval;
+ }
+-module_init(soundwire_init);
++postcore_initcall(soundwire_init);
+ module_exit(soundwire_exit);
+ 
+ 
+-- 
+2.20.1
+

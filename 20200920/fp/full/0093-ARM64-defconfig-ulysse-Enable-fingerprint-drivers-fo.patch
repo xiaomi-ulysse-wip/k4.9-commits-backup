@@ -1,0 +1,26 @@
+From 604d876e819b52a5cc92d4b53b56915dd451bf18 Mon Sep 17 00:00:00 2001
+From: "R. Adi Permana" <romadhonadipermana279f@gmail.com>
+Date: Thu, 17 Sep 2020 08:32:11 +0000
+Subject: [PATCH 093/100] ARM64: defconfig: ulysse: Enable fingerprint drivers
+ for ugg
+
+---
+ arch/arm64/configs/ulysse_defconfig | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/configs/ulysse_defconfig b/arch/arm64/configs/ulysse_defconfig
+index a7e17d878c4f..ef886333dbfa 100644
+--- a/arch/arm64/configs/ulysse_defconfig
++++ b/arch/arm64/configs/ulysse_defconfig
+@@ -716,4 +716,7 @@ CONFIG_IR_PWM=y
+ # CONFIG_IR_GPIO_CIR is not set
+ # CONFIG_IR_GPIO is not set
+ 
+-
++# ugg 
++CONFIG_FINGERPRINT_GF3208=y
++# CONFIG_FINGERPRINT_FPC1020 is not set
++CONFIG_FINGERPRINT_FPC1020_UGG=y
+-- 
+2.20.1
+
