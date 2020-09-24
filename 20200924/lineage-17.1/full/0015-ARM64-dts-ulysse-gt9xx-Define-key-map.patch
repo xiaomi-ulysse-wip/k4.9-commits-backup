@@ -1,0 +1,24 @@
+From 32aa475b6e8206f7cc897cc10f026cb8ec06b415 Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Tue, 25 Aug 2020 18:03:34 +0800
+Subject: [PATCH 15/99] ARM64: dts: ulysse: gt9xx: Define key map
+
+---
+ arch/arm64/boot/dts/qcom/ulysse-common/common-touchscreen.dtsi | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/ulysse-common/common-touchscreen.dtsi b/arch/arm64/boot/dts/qcom/ulysse-common/common-touchscreen.dtsi
+index c41403420501..32bed3263d84 100644
+--- a/arch/arm64/boot/dts/qcom/ulysse-common/common-touchscreen.dtsi
++++ b/arch/arm64/boot/dts/qcom/ulysse-common/common-touchscreen.dtsi
+@@ -80,6 +80,7 @@
+             01 14 50 00 05 00 00 00 00 00 00
+             00 00 00 00 00 00 EC 01
+             ];
++		touchscreen-key-map = <139 172 158>;
+         };
+ 
+         focaltech@38{
+-- 
+2.20.1
+

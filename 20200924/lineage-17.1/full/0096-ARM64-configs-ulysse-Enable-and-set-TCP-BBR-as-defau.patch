@@ -1,0 +1,27 @@
+From 49457ac20c689136ba43eb70db64ee959c6185dd Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Wed, 23 Sep 2020 23:29:33 +0800
+Subject: [PATCH 96/99] ARM64: configs: ulysse: Enable and set TCP BBR as
+ default
+
+---
+ arch/arm64/configs/ulysse_defconfig | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/arch/arm64/configs/ulysse_defconfig b/arch/arm64/configs/ulysse_defconfig
+index b59cdc2e4c4c..48a26bd77d76 100644
+--- a/arch/arm64/configs/ulysse_defconfig
++++ b/arch/arm64/configs/ulysse_defconfig
+@@ -719,3 +719,9 @@ CONFIG_IR_PWM=y
+ # ugg
+ CONFIG_FINGERPRINT_FPC1020_UGG=y
+ CONFIG_FINGERPRINT_GF3208_UGG=y
++
++# TCP BBR
++CONFIG_TCP_CONG_ADVANCED=y
++CONFIG_TCP_CONG_BBR=y
++CONFIG_DEFAULT_BBR=y
++CONFIG_DEFAULT_TCP_CONG="bbr"
+-- 
+2.20.1
+

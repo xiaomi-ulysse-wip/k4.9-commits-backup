@@ -1,0 +1,49 @@
+From 8ef85c9e6d0563dac9d01325b31d5661414befc8 Mon Sep 17 00:00:00 2001
+From: Nathan Chancellor <natechancellor@gmail.com>
+Date: Wed, 9 May 2018 19:42:08 -0700
+Subject: [PATCH 71/99] msm: camera-legacy: Remove unnecessary parentheses in
+ msm_cam_sensor_handle_reg_gpio
+
+Clang warns:
+
+../drivers/media/platform/msm/camera_v2-legacy/sensor/io/msm_camera_dt_util.c:1431:48:
+warning: equality comparison with extraneous parentheses
+[-Wparentheses-equality]
+        if ((gconf->gpio_num_info->valid[gpio_offset] == 1)) {
+             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~
+../drivers/media/platform/msm/camera_v2-legacy/sensor/io/msm_camera_dt_util.c:1431:48:
+note: remove extraneous parentheses around the comparison to silence
+this warning
+        if ((gconf->gpio_num_info->valid[gpio_offset] == 1)) {
+            ~                                         ^   ~
+../drivers/media/platform/msm/camera_v2-legacy/sensor/io/msm_camera_dt_util.c:1431:48:
+note: use '=' to turn this equality comparison into an assignment
+        if ((gconf->gpio_num_info->valid[gpio_offset] == 1)) {
+                                                      ^~
+                                                      =
+1 warning generated.
+
+Fixes: 2f4b990af151 ("msm: camera: Add support to enable eLDOs through GPIOs")
+Signed-off-by: Nathan Chancellor <natechancellor@gmail.com>
+[kras: amend commit date]
+Signed-off-by: Albert I <kras@raphielgang.org>
+---
+ .../msm/camera_v2-legacy/sensor/io/msm_camera_dt_util.c         | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/io/msm_camera_dt_util.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/io/msm_camera_dt_util.c
+index 7d7969f36adb..8496916da6a1 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/io/msm_camera_dt_util.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/io/msm_camera_dt_util.c
+@@ -1428,7 +1428,7 @@ int msm_cam_sensor_handle_reg_gpio(int seq_val,
+ 	CDBG("%s: %d GPIO offset: %d, seq_val: %d\n", __func__, __LINE__,
+ 		gpio_offset, seq_val);
+ 
+-	if ((gconf->gpio_num_info->valid[gpio_offset] == 1)) {
++	if (gconf->gpio_num_info->valid[gpio_offset] == 1) {
+ 		gpio_set_value_cansleep(
+ 			gconf->gpio_num_info->gpio_num
+ 			[gpio_offset], val);
+-- 
+2.20.1
+

@@ -1,0 +1,40 @@
+From 0e82a683f8db33206aee00c9351dcdd1047634bd Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Sat, 15 Aug 2020 22:02:17 +0800
+Subject: [PATCH 25/99] of_batterydata: Import Xiaomi changes for ulysse
+
+---
+ drivers/of/of_batterydata.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/drivers/of/of_batterydata.c b/drivers/of/of_batterydata.c
+index 43417b2a771d..93f44a23ec43 100644
+--- a/drivers/of/of_batterydata.c
++++ b/drivers/of/of_batterydata.c
+@@ -372,13 +372,23 @@ struct device_node *of_batterydata_get_best_profile(
+ 					best_id_kohm = batt_ids.kohm[i];
+ 				}
+ 			}
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++		if (best_node ==NULL) {
++			pr_err("sunxing no battery data configed,add default\n");
++			best_node = node;
++			best_id_kohm = batt_ids.kohm[i];
++			return best_node;
++		}
++#endif
+ 		}
+ 	}
+ 
++#ifndef CONFIG_MACH_XIAOMI_ULYSSE
+ 	if (best_node == NULL) {
+ 		pr_err("No battery data found\n");
+ 		return best_node;
+ 	}
++#endif
+ 
+ 	/* check that profile id is in range of the measured batt_id */
+ 	if (abs(best_id_kohm - batt_id_kohm) >
+-- 
+2.20.1
+

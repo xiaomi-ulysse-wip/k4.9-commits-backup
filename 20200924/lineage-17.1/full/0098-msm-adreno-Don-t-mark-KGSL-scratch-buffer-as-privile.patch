@@ -1,0 +1,78 @@
+From aa85f56984d76d15d190875f6d5d89f74e94301c Mon Sep 17 00:00:00 2001
+From: Albert I <kras@raphielgang.org>
+Date: Fri, 4 Sep 2020 23:51:27 +0800
+Subject: [PATCH 98/99] msm/adreno: Don't mark KGSL scratch buffer as
+ privileged
+
+Partial revert of commit 76518d99f872, especially on adreno_ringbuffer_probe()
+where marking the scratch buffer as privileged currently breaks all devices.
+
+I'm assuming that this change requires updated Adreno firmware, which most of
+us don't have. All changes required to marking it so are retained, however.
+
+Signed-off-by: Albert I <kras@raphielgang.org>
+---
+ drivers/gpu/msm/adreno_a5xx.h       | 4 ++--
+ drivers/gpu/msm/adreno_a6xx.h       | 4 ++--
+ drivers/gpu/msm/adreno_ringbuffer.c | 3 +--
+ 3 files changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/gpu/msm/adreno_a5xx.h b/drivers/gpu/msm/adreno_a5xx.h
+index 1d81f9cc5424..3d89d73df317 100644
+--- a/drivers/gpu/msm/adreno_a5xx.h
++++ b/drivers/gpu/msm/adreno_a5xx.h
+@@ -1,4 +1,4 @@
+-/* Copyright (c) 2015-2017,2020, The Linux Foundation. All rights reserved.
++/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License version 2 and
+@@ -112,7 +112,7 @@ void a5xx_crashdump_init(struct adreno_device *adreno_dev);
+ 
+ void a5xx_hwcg_set(struct adreno_device *adreno_dev, bool on);
+ 
+-#define A5XX_CP_RB_CNTL_DEFAULT ((1 << 27) | ((ilog2(4) << 8) & 0x1F00) | \
++#define A5XX_CP_RB_CNTL_DEFAULT (((ilog2(4) << 8) & 0x1F00) | \
+ 		(ilog2(KGSL_RB_DWORDS >> 1) & 0x3F))
+ /* GPMU interrupt multiplexor */
+ #define FW_INTR_INFO			(0)
+diff --git a/drivers/gpu/msm/adreno_a6xx.h b/drivers/gpu/msm/adreno_a6xx.h
+index 20e9f46388df..3267213d7ce2 100644
+--- a/drivers/gpu/msm/adreno_a6xx.h
++++ b/drivers/gpu/msm/adreno_a6xx.h
+@@ -1,4 +1,4 @@
+-/* Copyright (c) 2017-2018,2020, The Linux Foundation. All rights reserved.
++/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License version 2 and
+@@ -103,7 +103,7 @@ struct cpu_gpu_lock {
+ /* Size of the performance counter save/restore block (in bytes) */
+ #define A6XX_CP_PERFCOUNTER_SAVE_RESTORE_SIZE   (4 * 1024)
+ 
+-#define A6XX_CP_RB_CNTL_DEFAULT ((1 << 27) | ((ilog2(4) << 8) & 0x1F00) | \
++#define A6XX_CP_RB_CNTL_DEFAULT (((ilog2(4) << 8) & 0x1F00) | \
+ 		(ilog2(KGSL_RB_DWORDS >> 1) & 0x3F))
+ 
+ /* Preemption functions */
+diff --git a/drivers/gpu/msm/adreno_ringbuffer.c b/drivers/gpu/msm/adreno_ringbuffer.c
+index c37a3c2f703e..e270cfdd3170 100644
+--- a/drivers/gpu/msm/adreno_ringbuffer.c
++++ b/drivers/gpu/msm/adreno_ringbuffer.c
+@@ -349,12 +349,11 @@ int adreno_ringbuffer_probe(struct adreno_device *adreno_dev, bool nopreempt)
+ 	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
+ 	struct adreno_gpudev *gpudev = ADRENO_GPU_DEVICE(adreno_dev);
+ 	int i;
+-	unsigned int priv = KGSL_MEMDESC_RANDOM | KGSL_MEMDESC_PRIVILEGED;
+ 	int status = -ENOMEM;
+ 
+ 	if (!adreno_is_a3xx(adreno_dev)) {
+ 		status = kgsl_allocate_global(device, &device->scratch,
+-				PAGE_SIZE, 0, priv, "scratch");
++				PAGE_SIZE, 0, KGSL_MEMDESC_RANDOM, "scratch");
+ 		if (status != 0)
+ 			return status;
+ 	}
+-- 
+2.20.1
+

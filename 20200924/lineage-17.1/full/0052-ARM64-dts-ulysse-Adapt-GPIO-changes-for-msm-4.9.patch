@@ -1,0 +1,73 @@
+From b8033552b4faa11231693706b7cf5bd3c60b9ca4 Mon Sep 17 00:00:00 2001
+From: "R. Adi Permana" <romadhonadipermana279f@gmail.com>
+Date: Sat, 19 Sep 2020 18:10:16 +0000
+Subject: [PATCH 52/99] ARM64: dts: ulysse: Adapt GPIO changes for msm-4.9
+
+Some GPIOs thing have changed after c971c3ddcdbf88d2604419e4bb559c63dadb8459.
+Let's adapt the gpio@c500 subnode and allow it to be configured.
+This will fix IR.
+
+Also move the overlay to the corresponding dtsi.
+
+Signed-off-by: R. Adi Permana <romadhonadipermana279f@gmail.com>
+---
+ .../dts/qcom/ulysse-common/common-mtp.dtsi    | 12 -----------
+ .../dts/qcom/ulysse-common/common-pm.dtsi     | 21 +++++++++++++++++++
+ 2 files changed, 21 insertions(+), 12 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/ulysse-common/common-mtp.dtsi b/arch/arm64/boot/dts/qcom/ulysse-common/common-mtp.dtsi
+index a84ee7566b48..bc987fbf9f43 100644
+--- a/arch/arm64/boot/dts/qcom/ulysse-common/common-mtp.dtsi
++++ b/arch/arm64/boot/dts/qcom/ulysse-common/common-mtp.dtsi
+@@ -64,18 +64,6 @@
+ 
+ };
+ 
+-&pm8937_gpios {
+-	gpio@c500{
+-		status = "okay";
+-		qcom,mode = <1>;		/*DIGITAL OUT*/
+-		qcom,pull = <5>;		/*NO PULL*/
+-		qcom,src-sel = <5>; 		/*DTEST2 OUT*/
+-		qcom,vin-sel = <3>;
+-		qcom,master-en = <1>;		/*ENABLE GPIO*/
+-		qcom,out-strength = <3>;	/*Max strength current*/
+-	};
+-};
+-
+ &i2c_2 {
+ 	status = "ok";
+ };
+diff --git a/arch/arm64/boot/dts/qcom/ulysse-common/common-pm.dtsi b/arch/arm64/boot/dts/qcom/ulysse-common/common-pm.dtsi
+index 4f1f96c87ab6..fc977b9b7b93 100644
+--- a/arch/arm64/boot/dts/qcom/ulysse-common/common-pm.dtsi
++++ b/arch/arm64/boot/dts/qcom/ulysse-common/common-pm.dtsi
+@@ -79,3 +79,24 @@
+ 	};
+ };
+ 
++&pm8937_gpios {
++	interrupts = <0x0 0xc0 0 IRQ_TYPE_NONE>,
++		 <0x0 0xc1 0 IRQ_TYPE_NONE>,
++		 <0x0 0xc4 0 IRQ_TYPE_NONE>,
++		 <0x0 0xc5 0 IRQ_TYPE_NONE>,
++		 <0x0 0xc6 0 IRQ_TYPE_NONE>,
++		 <0x0 0xc7 0 IRQ_TYPE_NONE>;
++	interrupt-names = "pm8937_gpio1", "pm8937_gpio2", "pm8937_gpio5", 
++    			 "pm8937_gpio6", "pmi8937_gpio7", "pm8937_gpio8";  
++	qcom,gpios-disallowed = <3 4>;
++	pinctrl-names = "default";
++	pinctrl-0 = <&pwm_ir_default>;
++  	    pwm_ir_default: pm8937_gpio6 {
++		pins = "gpio6";
++		function = "dtest2"; 
++		qcom,drive-strength = <2>;
++		output-low;
++		bias-disable;
++		status = "okay";
++	};
++};
+\ No newline at end of file
+-- 
+2.20.1
+

@@ -1,0 +1,976 @@
+From 80786b4a75e42f3ddca41823e2cc8297d582abdc Mon Sep 17 00:00:00 2001
+From: "R. Adi Permana" <romadhonadipermana279f@gmail.com>
+Date: Wed, 16 Sep 2020 14:24:32 +0000
+Subject: [PATCH 49/99] drivers: media: rc: Import Xiaomi changes for ulysse
+
+* Also add qpnp-pwm changes
+---
+ drivers/media/rc/Kconfig         |   8 +
+ drivers/media/rc/Makefile        |   1 +
+ drivers/media/rc/ir-lirc-codec.c |  53 +++-
+ drivers/media/rc/lirc_dev.c      |   5 +-
+ drivers/media/rc/pwm-ir.c        | 459 +++++++++++++++++++++++++++++++
+ drivers/pwm/pwm-qpnp.c           | 172 ++++++++++++
+ include/linux/pwm.h              |   6 +
+ include/media/pwm-ir.h           |  26 ++
+ include/media/rc-core.h          |   3 +
+ 9 files changed, 729 insertions(+), 4 deletions(-)
+ create mode 100644 drivers/media/rc/pwm-ir.c
+ create mode 100644 include/media/pwm-ir.h
+
+diff --git a/drivers/media/rc/Kconfig b/drivers/media/rc/Kconfig
+index 370e16e07867..87c7bdc150d6 100644
+--- a/drivers/media/rc/Kconfig
++++ b/drivers/media/rc/Kconfig
+@@ -132,6 +132,14 @@ menuconfig RC_DEVICES
+ 
+ if RC_DEVICES
+ 
++config IR_PWM
++	tristate "PWM IR remote control"
++	depends on RC_CORE
++	---help---
++	Say Y if you want to use PWM based IR.
++	To compile this driver as a module, choose M here: the module will
++	be called pwm-ir.
++
+ config RC_ATI_REMOTE
+ 	tristate "ATI / X10 based USB RF remote controls"
+ 	depends on USB_ARCH_HAS_HCD
+diff --git a/drivers/media/rc/Makefile b/drivers/media/rc/Makefile
+index 379a5c0f1379..c49c8774716d 100644
+--- a/drivers/media/rc/Makefile
++++ b/drivers/media/rc/Makefile
+@@ -35,5 +35,6 @@ obj-$(CONFIG_IR_IGORPLUGUSB) += igorplugusb.o
+ obj-$(CONFIG_IR_IGUANA) += iguanair.o
+ obj-$(CONFIG_IR_TTUSBIR) += ttusbir.o
+ obj-$(CONFIG_RC_ST) += st_rc.o
++obj-$(CONFIG_IR_PWM) += pwm-ir.o
+ obj-$(CONFIG_IR_SUNXI) += sunxi-cir.o
+ obj-$(CONFIG_IR_IMG) += img-ir/
+diff --git a/drivers/media/rc/ir-lirc-codec.c b/drivers/media/rc/ir-lirc-codec.c
+index d9a5710532f4..f0c03d0e344b 100644
+--- a/drivers/media/rc/ir-lirc-codec.c
++++ b/drivers/media/rc/ir-lirc-codec.c
+@@ -1,6 +1,7 @@
+ /* ir-lirc-codec.c - rc-core to classic lirc interface bridge
+  *
+  * Copyright (C) 2010 by Jarod Wilson <jarod@redhat.com>
++ * Copyright (C) 2018 XiaoMi, Inc.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  *  it under the terms of the GNU General Public License as published by
+@@ -20,7 +21,11 @@
+ #include <media/rc-core.h>
+ #include "rc-core-priv.h"
+ 
++#ifdef CONFIG_IR_PWM
++#define LIRCBUF_SIZE 1024
++#else
+ #define LIRCBUF_SIZE 256
++#endif
+ 
+ /**
+  * ir_lirc_decode() - Send raw IR data to lirc_dev to be relayed to the
+@@ -110,12 +115,14 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
+ 	unsigned int *txbuf; /* buffer with values to transmit */
+ 	ssize_t ret = -EINVAL;
+ 	size_t count;
++    #ifndef CONFIG_IR_PWM
+ 	ktime_t start;
+ 	s64 towait;
+ 	unsigned int duration = 0; /* signal duration in us */
+ 	int i;
+ 
+ 	start = ktime_get();
++    #endif
+ 
+ 	lirc = lirc_get_pdata(file);
+ 	if (!lirc)
+@@ -143,6 +150,7 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
+ 		goto out;
+ 	}
+ 
++    #ifndef CONFIG_IR_PWM
+ 	for (i = 0; i < count; i++) {
+ 		if (txbuf[i] > IR_MAX_DURATION / 1000 - duration || !txbuf[i]) {
+ 			ret = -EINVAL;
+@@ -151,17 +159,20 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
+ 
+ 		duration += txbuf[i];
+ 	}
++    #endif
+ 
+ 	ret = dev->tx_ir(dev, txbuf, count);
+ 	if (ret < 0)
+ 		goto out;
+-
++    #ifndef CONFIG_IR_PWM
+ 	for (duration = i = 0; i < ret; i++)
+ 		duration += txbuf[i];
+ 
+-	ret *= sizeof(unsigned int);
++	#endif
++    ret *= sizeof(unsigned int);
+ 
+-	/*
++	#ifndef CONFIG_IR_PWM
++    /*
+ 	 * The lircd gap calculation expects the write function to
+ 	 * wait for the actual IR signal to be transmitted before
+ 	 * returning.
+@@ -171,6 +182,7 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
+ 		set_current_state(TASK_INTERRUPTIBLE);
+ 		schedule_timeout(usecs_to_jiffies(towait));
+ 	}
++    #endif
+ 
+ out:
+ 	kfree(txbuf);
+@@ -317,12 +329,37 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
+ 
+ static int ir_lirc_open(void *data)
+ {
++#ifdef CONFIG_IR_PWM
++	struct lirc_codec *lirc = data;
++	struct rc_dev *dev = lirc->dev;
++	int ret = 0;
++
++	mutex_lock(&dev->lock);
++	if (!dev->open_count++ && dev->open)
++		ret = dev->open(dev);
++	if (ret < 0)
++		dev->open_count--;
++	mutex_unlock(&dev->lock);
++
++	return ret;
++#else
+ 	return 0;
++#endif
+ }
+ 
+ static void ir_lirc_close(void *data)
+ {
++#ifdef CONFIG_IR_PWM
++	struct lirc_codec *lirc = data;
++	struct rc_dev *dev = lirc->dev;
++
++	mutex_lock(&dev->lock);
++	if (!--dev->open_count && dev->close)
++		dev->close(dev);
++	mutex_unlock(&dev->lock);
++#else
+ 	return;
++#endif
+ }
+ 
+ static const struct file_operations lirc_fops = {
+@@ -390,7 +427,11 @@ static int ir_lirc_register(struct rc_dev *dev)
+ 	drv->rbuf = rbuf;
+ 	drv->set_use_inc = &ir_lirc_open;
+ 	drv->set_use_dec = &ir_lirc_close;
++#ifdef CONFIG_IR_PWM
++	drv->code_length = sizeof(int) * 8;
++#else
+ 	drv->code_length = sizeof(struct ir_raw_event) * 8;
++#endif
+ 	drv->fops = &lirc_fops;
+ 	drv->dev = &dev->dev;
+ 	drv->rdev = dev;
+@@ -407,6 +448,9 @@ static int ir_lirc_register(struct rc_dev *dev)
+ 	return 0;
+ 
+ lirc_register_failed:
++#ifdef CONFIG_IR_PWM
++lirc_buffer_free(rbuf);
++#endif
+ rbuf_init_failed:
+ 	kfree(rbuf);
+ rbuf_alloc_failed:
+@@ -421,6 +465,9 @@ static int ir_lirc_unregister(struct rc_dev *dev)
+ 
+ 	lirc_unregister_driver(lirc->drv->minor);
+ 	lirc_buffer_free(lirc->drv->rbuf);
++#ifdef CONFIG_IR_PWM
++	kfree(lirc->drv->rbuf);
++#endif
+ 	kfree(lirc->drv->rbuf);
+ 	kfree(lirc->drv);
+ 
+diff --git a/drivers/media/rc/lirc_dev.c b/drivers/media/rc/lirc_dev.c
+index f4509ef9922b..b303ecb23ec9 100644
+--- a/drivers/media/rc/lirc_dev.c
++++ b/drivers/media/rc/lirc_dev.c
+@@ -203,9 +203,12 @@ static int lirc_allocate_buffer(struct irctl *ir)
+ 	struct lirc_driver *d = &ir->d;
+ 
+ 	mutex_lock(&lirc_dev_lock);
+-
++#ifdef CONFIG_IR_PWM
++	bytes_in_key = (d->code_length + 7) / 8;
++#else
+ 	bytes_in_key = BITS_TO_LONGS(d->code_length) +
+ 						(d->code_length % 8 ? 1 : 0);
++#endif
+ 	buffer_size = d->buffer_size ? d->buffer_size : BUFLEN / bytes_in_key;
+ 	chunk_size  = d->chunk_size  ? d->chunk_size  : bytes_in_key;
+ 
+diff --git a/drivers/media/rc/pwm-ir.c b/drivers/media/rc/pwm-ir.c
+new file mode 100644
+index 000000000000..4d506559a71e
+--- /dev/null
++++ b/drivers/media/rc/pwm-ir.c
+@@ -0,0 +1,459 @@
++/* Copyright (C) 2013 by Xiang Xiao <xiaoxiang@xiaomi.com>
++ * Copyright (C) 2018 XiaoMi, Inc.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++#include <linux/delay.h>
++#include <linux/hrtimer.h>
++#include <linux/module.h>
++#include <linux/of.h>
++#include <linux/gpio.h>
++#include <linux/of_gpio.h>
++#include <linux/platform_device.h>
++#include <linux/pwm.h>
++#include <linux/regulator/consumer.h>
++#include <linux/sched.h>
++#include <linux/slab.h>
++#include <media/pwm-ir.h>
++#include <media/rc-core.h>
++#include <linux/uaccess.h>
++#include <linux/time.h>
++#define IR_VDD_MIN_UV 2600000
++#define IR_VDD_MAX_UV 3300000
++#define IR_DEBUG_FS 1
++#if IR_DEBUG_FS
++#include <linux/slab.h>
++#include <linux/proc_fs.h>
++static struct proc_dir_entry *g_lct_ir_debug_proc = NULL;
++#define LCT_IR_DEBUG_PROC_FILE "pwm_ir_fs"
++#endif
++struct pwm_ir_dev {
++	struct mutex            lock;
++	struct platform_device *pdev;
++	struct rc_dev          *rdev;
++	struct regulator       *reg;
++	struct pwm_device      *pwm;
++	int 					pwm_enable_gpio;
++	u32                     carrier;
++	u32                     duty_cycle;
++};
++struct pwm_ir_packet {
++	struct completion  done;
++	struct hrtimer     timer;
++	struct pwm_device *pwm;
++	bool               abort;
++	unsigned int      *buffer;
++	unsigned int       length;
++	unsigned int       next;
++	struct mutex       lock;
++};
++#if IR_DEBUG_FS
++struct pwm_ir_dev *g_ir_dev = NULL;
++#endif
++#define __devexit
++#define __devinitdata
++#define __devinit
++#define __devexit_p
++static int pwm_ir_tx_config(struct pwm_ir_dev *dev, u32 carrier, u32 duty_cycle)
++{
++	int period_ns, duty_ns, rc;
++	rc = stop_ir_pwm_data();
++	period_ns = NSEC_PER_SEC / carrier;
++	duty_ns = period_ns * duty_cycle / 100;
++	printk("pwm_ir_tx_config period_ns = %d,duty_ns = %d \n",period_ns,duty_ns);
++	rc = pwm_config(dev->pwm, duty_ns, period_ns);
++	if (rc == 0) {
++		dev->carrier = carrier;
++		dev->duty_cycle = duty_cycle;
++	}
++	return rc;
++}
++static int pwm_ir_tx_carrier(struct rc_dev *rdev, u32 carrier)
++{
++	struct pwm_ir_dev *dev = rdev->priv;
++	int rc;
++	mutex_lock(&dev->lock);
++	rc = pwm_ir_tx_config(dev, carrier, dev->duty_cycle);
++	mutex_unlock(&dev->lock);
++	return rc;
++}
++static int pwm_ir_tx_duty_cycle(struct rc_dev *rdev, u32 duty_cycle)
++{
++	struct pwm_ir_dev *dev = rdev->priv;
++	int rc;
++	mutex_lock(&dev->lock);
++	rc = pwm_ir_tx_config(dev, dev->carrier, duty_cycle);
++	mutex_unlock(&dev->lock);
++	return rc;
++}
++static enum hrtimer_restart pwm_ir_tx_timer(struct hrtimer *timer)
++{
++	struct pwm_ir_packet *pkt = container_of(timer, struct pwm_ir_packet, timer);
++	enum hrtimer_restart restart = HRTIMER_RESTART;
++	if (!pkt->abort && pkt->next < pkt->length) {
++		u64 orun = hrtimer_forward_now(&pkt->timer,
++			ns_to_ktime(pkt->buffer[pkt->next++]));
++		if (orun > 1)
++			pr_warn("pwm-ir: lost %llu hrtimer callback\n", orun - 1);
++		if (pkt->next & 0x01)
++			pwm_disable(pkt->pwm);
++		else /* pulse */
++			pwm_enable(pkt->pwm);
++	} else {
++		restart = HRTIMER_NORESTART;
++		pwm_disable(pkt->pwm);
++		complete(&pkt->done);
++	}
++	return restart;
++}
++static int pwm_ir_tx_transmit_with_timer(struct pwm_ir_packet *pkt)
++{
++	int rc = 0;
++	init_completion(&pkt->done);
++	hrtimer_init(&pkt->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
++	pkt->timer.function = pwm_ir_tx_timer;
++	hrtimer_start(&pkt->timer, ns_to_ktime(0), HRTIMER_MODE_REL);
++	rc = wait_for_completion_interruptible(&pkt->done);
++	if (rc != 0) { /* signal exit immediately */
++		pkt->abort = true;
++		wait_for_completion(&pkt->done);
++	}
++	return pkt->next ? : -ERESTARTSYS;
++}
++static long pwm_ir_tx_work(void *arg)
++{
++	unsigned long flags;
++	long rc=0;
++	local_irq_save(flags);
++	rc = qpnp_ir_pwm_data(arg);
++	local_irq_restore(flags);
++	return rc;
++}
++static int pwm_ir_tx_transmit_with_delay(struct pwm_ir_packet *pkt)
++{
++	int cpu, rc = -ENODEV;
++	for_each_online_cpu(cpu) {
++		if (cpu != 0) {
++			rc = work_on_cpu(cpu, pwm_ir_tx_work, pkt);
++			break;
++		}
++	}
++	if (rc == -ENODEV) {
++		pr_warn("pwm-ir: can't run on the auxilliary cpu\n");
++		rc = pwm_ir_tx_work(pkt);
++	}
++	return rc;
++}
++static int pwm_ir_tx_transmit(struct rc_dev *rdev, unsigned *txbuf, unsigned n)
++{
++	struct pwm_ir_dev *dev = rdev->priv;
++	struct pwm_ir_data *data = dev->pdev->dev.platform_data;
++	struct pwm_ir_packet pkt = {};
++	int i = 0, rc = 0;
++	unsigned int temp = 0, temp2 = 0;
++	for (i = 0; i < n; i++) {
++		txbuf[i] *= NSEC_PER_USEC;
++		temp  = txbuf[i] / 26666;
++		temp2 = txbuf[i] % 26666;
++		if(((i+1) % 2) == 0) {
++			if((txbuf[i] > 53332) && (txbuf[i] < 280000))
++				txbuf[i] = temp * 26666  - 16000;
++			else if((txbuf[i] > 280000) && (txbuf[i] < 620000))
++			{
++				if(txbuf[i] > 53332) {
++					if(temp2 < 8000)
++						txbuf[i] = temp * 26666;
++					else
++						txbuf[i] = temp * 26666 + 16000;
++				}
++			}
++		} else{
++			if(txbuf[i] > 53332) {
++				if(temp2 < 8000)
++					txbuf[i] = temp * 26666;
++				else
++					txbuf[i] = (temp + 1) * 26666;
++			}
++		}
++	}
++	mutex_lock(&dev->lock);
++	if (dev->reg) {
++		rc = regulator_enable(dev->reg);
++		if (rc != 0)
++			goto err_regulator_enable;
++	}
++	pkt.pwm    = dev->pwm;
++	pkt.buffer = txbuf;
++	pkt.length = n;
++	if (data->use_timer)
++		rc = pwm_ir_tx_transmit_with_timer(&pkt);
++	else
++		rc = pwm_ir_tx_transmit_with_delay(&pkt);
++	if (dev->reg)
++		regulator_disable(dev->reg);
++err_regulator_enable:
++	mutex_unlock(&dev->lock);
++	return rc;
++}
++static int __devinit pwm_ir_tx_probe(struct pwm_ir_dev *dev)
++{
++	struct pwm_ir_data *data = dev->pdev->dev.platform_data;
++	struct platform_device *pdev = dev->pdev;
++	int rc = 0;
++	if (data->reg_id) {
++		dev->reg = regulator_get(&dev->pdev->dev, data->reg_id);
++		if (IS_ERR(dev->reg)) {
++			dev_err(&dev->pdev->dev,
++				"failed to regulator_get(%s)\n",
++				 data->reg_id);
++			return PTR_ERR(dev->reg);
++		}
++	}
++	if (regulator_count_voltages(dev->reg) > 0) {
++		rc = regulator_set_voltage(dev->reg, IR_VDD_MIN_UV,
++					IR_VDD_MAX_UV);
++		if (rc) {
++			dev_err(&dev->pdev->dev,
++				"Regulator set_vtg failed vdd rc=%d\n",
++					rc);
++			goto err_regulator_put;
++		}
++	}
++	dev->pwm = of_pwm_get(pdev->dev.of_node, NULL);
++	if (IS_ERR(dev->pwm)) {
++		dev_err(&dev->pdev->dev,
++			"failed to of_pwm_get()\n");
++		rc = PTR_ERR(dev->pwm);
++		dev_err(&dev->pdev->dev, "Cannot get PWM device rc:(%d)\n", rc);
++		dev->pwm = NULL;
++		goto err_regulator_put;
++	}
++	if (data->low_active) {
++#if 0 /* need the latest kernel */
++		rc = pwm_set_polarity(dev->pwm, PWM_POLARITY_INVERSED);
++#else
++		rc = -ENOSYS;
++#endif
++		if (rc != 0) {
++			dev_err(&dev->pdev->dev, "failed to change polarity\n");
++			goto err_pwm_free;
++		}
++	}
++	rc = pwm_ir_tx_config(dev, 38000, 33);
++	if (rc != 0) {
++		dev_err(&dev->pdev->dev, "failed to change carrier and duty\n");
++		goto err_pwm_free;
++	}
++	dev->rdev->tx_ir           = pwm_ir_tx_transmit;
++	dev->rdev->s_tx_carrier    = pwm_ir_tx_carrier;
++	dev->rdev->s_tx_duty_cycle = pwm_ir_tx_duty_cycle;
++	return rc;
++err_pwm_free:
++	pwm_free(dev->pwm);
++err_regulator_put:
++	if (dev->reg)
++		regulator_put(dev->reg);
++	return rc;
++}
++static void pwm_ir_tx_remove(struct pwm_ir_dev *dev)
++{
++	if (dev->reg)
++		regulator_put(dev->reg);
++	pwm_free(dev->pwm);
++}
++#if IR_DEBUG_FS
++static ssize_t lct_ir_debug_proc_write(struct file *file, const char __user *buf, size_t size, loff_t *ppos)
++{
++	char data[256] = {0};
++	char tmp_data[256] = {0};
++	char *operation = NULL;
++	char* value = NULL;
++	char *tmpValue1 = NULL;
++	char *tmpValue2 = NULL;
++	int time[256] = {0};
++	int time_count = 0;
++	int frequency_HZ = 0;
++	int duty_percent = 0;
++	int rc;
++	if(copy_from_user(tmp_data, buf, size)) {
++		 printk("copy_from_user() fail.\n");
++		 return -EFAULT;
++	}
++	if(g_ir_dev == NULL) {
++		printk("lct_ir_debug_proc_write Please check probe func \n");
++		return -EFAULT;
++	}
++	 printk("lct_ir_debug_proc_write tmp_data = %s \n",tmp_data);
++	 strcpy(data,tmp_data);
++	 value = strchr(tmp_data,':');
++	 if(value != NULL) {
++		data[value-tmp_data] = '\0';
++		operation = data;
++		value++;
++	 }
++	 printk("lct_ir_debug_proc_write operation = %s \n",operation);
++	 if(strcmp(operation,"sf") == 0) {
++		frequency_HZ = simple_strtoul(value, NULL, 10);
++		printk("lct_ir_debug_proc_write frequency_HZ=%d \n",frequency_HZ);
++		rc = pwm_ir_tx_carrier(g_ir_dev->rdev,(u32)frequency_HZ);
++		printk("lct_ir_debug_proc_write set frequency_HZ rc=%d \n",rc);
++	 } else if(strcmp(operation,"sd") == 0) {
++		duty_percent = simple_strtoul(value, NULL, 10);
++		printk("lct_ir_debug_proc_write duty_percent=%d \n",duty_percent);
++		rc = pwm_ir_tx_duty_cycle(g_ir_dev->rdev,(u32)duty_percent);
++		printk("lct_ir_debug_proc_write set duty_percent rc=%d \n",rc);
++	 } else if(strcmp(operation,"dispwm") == 0) {
++		printk("lct_ir_debug_proc_write stop PWM output \n");
++		pwm_disable(g_ir_dev->pwm);
++	 }
++	else if(strcmp(operation,"enpwm") == 0) {
++		printk("lct_ir_debug_proc_write stop PWM output \n");
++		rc = pwm_enable(g_ir_dev->pwm);
++		printk("lct_ir_debug_proc_write pwm_enable result = %d \n",rc);
++	} else if(strcmp(operation,"tx") == 0) {
++		printk("lct_ir_debug_proc_write time value = %s \n",operation);
++		tmpValue2 = value;
++		while(((tmpValue1 = strchr(tmpValue2,':')) != NULL) || (time_count >= 50)) {
++			printk("lct_ir_debug_proc_write time tmpValue1 = %s \n",tmpValue1);
++			value[tmpValue1 - tmpValue2] = '\0';
++			time[time_count++] = simple_strtoul(value, NULL, 10);
++			tmpValue1++;
++			tmpValue2 = tmpValue1;
++			value = tmpValue2;;
++		}
++		if(time_count < 50 ) {
++			time[time_count++] = simple_strtoul(value, NULL, 10);
++		}
++		rc = pwm_ir_tx_transmit(g_ir_dev->rdev,(unsigned*)time,(unsigned)time_count);
++		printk("lct_ir_debug_proc_write tx result = %d \n",rc);
++	} else {
++		printk("lct_ir_debug_proc_write invalid operation = %s \n",operation);
++		return -EFAULT;
++	}
++	return size;
++}
++static ssize_t lct_ir_debug_proc_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
++{
++	int cnt= 0;
++	char *page = NULL;
++	page = kzalloc(128, GFP_KERNEL);
++	cnt = sprintf(page, "%s", "usage: echo \"1:38000:50\" > proc/pwm_ir_fs\n");
++	cnt = simple_read_from_buffer(buf, size, ppos, page, cnt);
++	kfree(page);
++	return cnt;
++}
++static const struct file_operations lct_ir_debug_proc_fops = {
++	.read		= lct_ir_debug_proc_read,
++	.write		= lct_ir_debug_proc_write,
++};
++#endif
++static int __devinit pwm_ir_probe(struct platform_device *pdev)
++{
++	struct pwm_ir_dev *dev;
++	int rc = -ENOMEM;
++	if (!pdev->dev.platform_data) {
++		pdev->dev.platform_data = devm_kzalloc(&pdev->dev, sizeof(struct pwm_ir_data), GFP_KERNEL);
++		if (pdev->dev.platform_data) {
++			if (pdev->dev.of_node) {
++				struct pwm_ir_data *data = pdev->dev.platform_data;
++				of_property_read_string(pdev->dev.of_node, "reg-id", &data->reg_id);
++				data->low_active = of_property_read_bool(pdev->dev.of_node, "low-active");
++				data->use_timer = of_property_read_bool(pdev->dev.of_node, "use-timer");
++	       	dev_info(&pdev->dev,
++					 "reg-id = %s, low-active = %d, use-timer = %d\n",
++					  data->reg_id,  data->low_active, data->use_timer);
++			}
++		} else {
++			dev_err(&pdev->dev, "failed to alloc platform data\n");
++			return -ENOMEM;
++		}
++	}
++	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
++	if (!dev) {
++		dev_err(&pdev->dev, "failed to alloc dev\n");
++		return rc;
++	}
++	mutex_init(&dev->lock);
++	dev->pdev = pdev;
++	platform_set_drvdata(pdev, dev);
++	dev->rdev = rc_allocate_device();
++	if (!dev->rdev) {
++		dev_err(&pdev->dev, "failed to alloc rdev\n");
++		goto err_rc_allocate_device;
++	}
++	dev->rdev->dev.parent       = &pdev->dev;
++	dev->rdev->input_name       = PWM_IR_NAME;
++	dev->rdev->input_phys       = PWM_IR_NAME;
++	dev->rdev->input_id.bustype = BUS_HOST;
++	dev->rdev->driver_name      = PWM_IR_NAME;
++	dev->rdev->map_name         = RC_MAP_LIRC;
++	dev->rdev->driver_type      = RC_DRIVER_IR_RAW;
++	dev->rdev->priv             = dev;
++	rc = pwm_ir_tx_probe(dev);
++	if (rc != 0)
++		goto err_pwm_ir_tx_probe;
++	rc = rc_register_device(dev->rdev);
++	if (rc < 0) {
++		dev_err(&pdev->dev, "failed to register rdev\n");
++		goto err_rc_register_device;
++	}
++#if IR_DEBUG_FS
++	g_lct_ir_debug_proc = proc_create_data(LCT_IR_DEBUG_PROC_FILE, 0660, NULL, &lct_ir_debug_proc_fops, NULL);
++	if (IS_ERR_OR_NULL(g_lct_ir_debug_proc)) {
++		printk("pwm_ir_probe create_proc_entry g_lct_ir_debug_proc failed\n");
++	} else {
++		printk("pwm_ir_probe create_proc_entry g_lct_ir_debug_proc success\n");
++	}
++	g_ir_dev = dev;
++#endif
++	return rc;
++err_rc_register_device:
++	pwm_ir_tx_remove(dev);
++err_pwm_ir_tx_probe:
++	rc_free_device(dev->rdev);
++err_rc_allocate_device:
++	kfree(dev);
++	return rc;
++}
++static int __devexit pwm_ir_remove(struct platform_device *pdev)
++{
++	struct pwm_ir_dev *dev = platform_get_drvdata(pdev);
++	rc_unregister_device(dev->rdev);
++	pwm_ir_tx_remove(dev);
++	kfree(dev);
++	return 0;
++}
++/* code for init and exit */
++static const struct of_device_id of_pwm_ir_match[] = {
++	{.compatible = PWM_IR_NAME,},
++	{},
++};
++static struct platform_driver pwm_ir_driver = {
++	.probe  = pwm_ir_probe,
++	.remove = __devexit_p(pwm_ir_remove),
++	.driver = {
++		.name  = PWM_IR_NAME,
++		.owner = THIS_MODULE,
++		.of_match_table = of_pwm_ir_match,
++	},
++};
++static int __init pwm_ir_init(void)
++{
++	return platform_driver_register(&pwm_ir_driver);
++}
++late_initcall(pwm_ir_init);
++static void __exit pwm_ir_exit(void)
++{
++	platform_driver_unregister(&pwm_ir_driver);
++}
++module_exit(pwm_ir_exit);
++MODULE_LICENSE("GPL");
++MODULE_AUTHOR("lct <lct@loncheer.com>");
++MODULE_DESCRIPTION("PWM IR driver");
+diff --git a/drivers/pwm/pwm-qpnp.c b/drivers/pwm/pwm-qpnp.c
+index e7267dec1a0c..ef0765b7a19b 100644
+--- a/drivers/pwm/pwm-qpnp.c
++++ b/drivers/pwm/pwm-qpnp.c
+@@ -1,4 +1,5 @@
+ /* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
++ * Copyright (C) 2018 XiaoMi, Inc.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License version 2 and
+@@ -28,6 +29,10 @@
+ #include <linux/of_address.h>
+ #include <linux/radix-tree.h>
+ #include <linux/qpnp/pwm.h>
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++#include <linux/time.h>
++#include <linux/delay.h>
++#endif
+ 
+ #define QPNP_LPG_DRIVER_NAME	"qcom,qpnp-pwm"
+ #define QPNP_LPG_CHANNEL_BASE	"qpnp-lpg-channel-base"
+@@ -339,8 +344,24 @@ struct qpnp_pwm_chip {
+ 	u32			dtest_line;
+ 	u32			dtest_output;
+ 	bool			in_test_mode;
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	struct mutex    lock;
++#endif
+ };
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++struct qpnp_pwm_chip	*pwm_chip;
++
++struct pwm_ir_packet {
++	struct completion  done;
++	struct hrtimer     timer;
++	struct pwm_device *pwm;
++	bool               abort;
++	unsigned int      *buffer;
++	unsigned int       length;
++	unsigned int       next;
++};
++#endif
+ /* Internal functions */
+ static inline struct qpnp_pwm_chip *qpnp_pwm_from_pwm_dev(
+ 					struct pwm_device *pwm)
+@@ -1067,6 +1088,144 @@ static int qpnp_dtest_config(struct qpnp_pwm_chip *chip, bool enable)
+ 	return rc;
+ }
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++void pull_down_dtest1(void)
++{
++
++	u8 reg = 0;
++	long rc = 0;
++
++	reg = 0xA5;
++	rc = regmap_write(pwm_chip->regmap,
++									pwm_chip->lpg_config.base_addr+0xD0, reg);
++	if(rc)
++		pr_err("Failed to unlock the Secure register\n ");
++	reg = 0x1;
++	rc = regmap_write(pwm_chip->regmap,
++					pwm_chip->lpg_config.base_addr+0xE2, reg);
++	if(rc)
++		pr_err("Failed to setting DTEST1 LPG_OUT_lo\n");
++}
++
++long stop_ir_pwm_data(void)
++{
++
++	u8 reg = 0;
++	long rc = 0;
++
++	if(pwm_chip->dtest_line!=1) {
++		pwm_chip->enabled = false;
++
++		reg = 0x0;
++		regmap_write(pwm_chip->regmap, pwm_chip->lpg_config.base_addr+0x46, reg);
++		if(rc){
++			pr_err("Failed to disable PWM output disable\n");
++			return -1;
++		}
++	}
++	return 0;
++}
++
++long qpnp_ir_pwm_data(void *arg)
++{
++	struct pwm_ir_packet *pkt = arg;
++	u8 reg = 0;
++	long rc = 0;
++	unsigned long flags;
++
++	mutex_lock(&pwm_chip->lock);
++	spin_lock_irqsave(&pwm_chip->lpg_lock, flags);
++
++	reg = 0xA5;
++	rc = regmap_write(pwm_chip->regmap, pwm_chip->lpg_config.base_addr+0xD0, reg);
++	if(rc){
++		pr_err("Failed to unlock the Secure register\n ");
++		goto error;
++	}
++
++	if(pwm_chip->dtest_line == 1) {
++		reg = 0x1;
++		rc = regmap_write(pwm_chip->regmap,
++									pwm_chip->lpg_config.base_addr+0xE2, reg);
++		if(rc){
++			pr_err("Failed to setting DTEST1 LPG_OUT_lo\n");
++			goto error;
++		}
++	}
++
++	reg = 0xA8;
++	rc  = regmap_write(pwm_chip->regmap,
++								   pwm_chip->lpg_config.base_addr+0x44, reg);
++	if(rc){
++		pr_err("LSB:Failed to setting PWM duty as 0.33\n");
++	goto error;
++	}
++	reg = 0x0;
++	rc = regmap_write(pwm_chip->regmap,
++								   pwm_chip->lpg_config.base_addr+0x45, reg);
++	if(rc){
++		pr_err("MSB: Failed to setting PWM duty as 0.33 \n");
++		goto error;
++	}
++	for (; pkt->next < pkt->length; pkt->next++) {
++		if (signal_pending(current))
++			break;
++		if (pkt->next & 0x01)
++		{
++			reg = 0x0;
++			regmap_write(pwm_chip->regmap,
++												pwm_chip->lpg_config.base_addr+0x46, reg);
++			if(rc){
++				pr_err("Failed to disable PWM output disable\n");
++				goto error;
++			}
++		} else {
++
++			reg = 0x80;
++			rc = regmap_write(pwm_chip->regmap,
++												pwm_chip->lpg_config.base_addr+0x46, reg);
++			if(rc){
++				pr_err("Failed to Writing PWM output enable register\n");
++				goto error;
++			}
++
++			reg = 0x1;
++			rc = regmap_write(pwm_chip->regmap,
++												pwm_chip->lpg_config.base_addr+0x47, reg);
++			if(rc){
++				pr_err("Failed to enable PWM output\n");
++				goto error;
++			}
++		}
++
++		ndelay(pkt->buffer[pkt->next]%1000);
++		udelay(pkt->buffer[pkt->next]/1000);
++
++	}
++
++	reg = 0x0;
++	rc = regmap_write(pwm_chip->regmap,
++												pwm_chip->lpg_config.base_addr+0x46, reg);
++	if(rc){
++			pr_err("Failed to disable PWM output\n");
++			goto error;
++	}
++
++	if(pwm_chip->dtest_line!=1)
++		pwm_chip->enabled = true;
++	spin_unlock_irqrestore(&pwm_chip->lpg_lock, flags);
++	mutex_unlock(&pwm_chip->lock);
++	return pkt->next ? : -ERESTARTSYS;
++
++error:
++	if(pwm_chip->dtest_line!=1)
++		pwm_chip->enabled = true;
++	spin_unlock_irqrestore(&pwm_chip->lpg_lock, flags);
++	mutex_unlock(&pwm_chip->lock);
++	return rc;
++
++}
++#endif
+ static int qpnp_lpg_configure_lut_state(struct qpnp_pwm_chip *chip,
+ 				enum qpnp_lut_state state)
+ {
+@@ -2110,7 +2269,15 @@ static int qpnp_parse_dt_config(struct platform_device *pdev,
+ 
+ 	chip->pwm_mode = mode;
+ 	_pwm_change_mode(chip, mode);
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	if(chip->dtest_line!=1) {
++		_pwm_enable(chip);
++    } else {
++		pull_down_dtest1();
++    }
++#else
+ 	_pwm_enable(chip);
++#endif
+ 
+ read_opt_props:
+ 	/* Initialize optional config parameters from DT if provided */
+@@ -2134,7 +2301,9 @@ static struct pwm_ops qpnp_pwm_ops = {
+ 
+ static int qpnp_pwm_probe(struct platform_device *pdev)
+ {
++#ifndef CONFIG_MACH_XIAOMI_ULYSSE
+ 	struct qpnp_pwm_chip	*pwm_chip;
++#endif
+ 	int			rc;
+ 
+ 	pwm_chip = kzalloc(sizeof(*pwm_chip), GFP_KERNEL);
+@@ -2148,6 +2317,9 @@ static int qpnp_pwm_probe(struct platform_device *pdev)
+ 	}
+ 
+ 	spin_lock_init(&pwm_chip->lpg_lock);
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	mutex_init(&pwm_chip->lock);
++#endif
+ 
+ 	pwm_chip->pdev = pdev;
+ 	dev_set_drvdata(&pdev->dev, pwm_chip);
+diff --git a/include/linux/pwm.h b/include/linux/pwm.h
+index ef2743cc3390..bba5ecd3f38d 100644
+--- a/include/linux/pwm.h
++++ b/include/linux/pwm.h
+@@ -521,6 +521,12 @@ static inline int pwm_set_polarity(struct pwm_device *pwm,
+ 	return pwm_apply_state(pwm, &state);
+ }
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++long stop_ir_pwm_data(void);
++/* pwm_enable & pwm_disable - direct write pwm register to control pwm output is enabled and disabled*/
++long qpnp_ir_pwm_data(void *arg);
++#endif
++
+ /**
+  * pwm_enable() - start a PWM output toggling
+  * @pwm: PWM device
+diff --git a/include/media/pwm-ir.h b/include/media/pwm-ir.h
+new file mode 100644
+index 000000000000..346db8ce771a
+--- /dev/null
++++ b/include/media/pwm-ir.h
+@@ -0,0 +1,26 @@
++/* Copyright (C) 2013 by Xiang Xiao <xiaoxiang@xiaomi.com>
++ * Copyright (C) 2018 XiaoMi, Inc.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++#ifndef __PWM_IR_H__
++#define __PWM_IR_H__
++
++#define PWM_IR_NAME	"pwm-ir"
++
++struct pwm_ir_data {
++	const char  *reg_id;
++	int          pwm_id;
++	bool         low_active;
++	bool         use_timer;
++};
++
++#endif
+\ No newline at end of file
+diff --git a/include/media/rc-core.h b/include/media/rc-core.h
+index 40188d362486..d9f53e5fa6bb 100644
+--- a/include/media/rc-core.h
++++ b/include/media/rc-core.h
+@@ -162,6 +162,9 @@ struct rc_dev {
+ 	u32				last_scancode;
+ 	u8				last_toggle;
+ 	u32				timeout;
++#ifdef CONFIG_IR_PWM
++	u32				open_count;
++#endif
+ 	u32				min_timeout;
+ 	u32				max_timeout;
+ 	u32				rx_resolution;
+-- 
+2.20.1
+

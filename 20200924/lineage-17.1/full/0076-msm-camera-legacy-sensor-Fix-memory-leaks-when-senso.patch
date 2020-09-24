@@ -1,0 +1,53 @@
+From ce7b900a1e77c31b881875850b862d7106924327 Mon Sep 17 00:00:00 2001
+From: Sultan Alsawaf <sultan@kerneltoast.com>
+Date: Tue, 21 Mar 2017 15:29:57 -0700
+Subject: [PATCH 76/99] msm: camera-legacy: sensor: Fix memory leaks when
+ sensor probe fails
+
+The power settings for a camera sensor can be parsed and have its memory
+never freed in the error path if part of the probe sequence fails after
+the power settings are parsed.
+
+Free the power settings in the error paths to fix the memory leaks.
+
+Change-Id: I55bf1403e471076a2a668ebe798f316c188023bc
+Signed-off-by: Sultan Alsawaf <sultan@kerneltoast.com>
+Signed-off-by: Albert I <kras@raphielgang.org>
+---
+ .../msm/camera_v2-legacy/sensor/msm_sensor_driver.c         | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor_driver.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor_driver.c
+index c6689742fccd..106176de795f 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor_driver.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/msm_sensor_driver.c
+@@ -634,6 +634,7 @@ static int32_t msm_sensor_get_power_settings(void *setting,
+ 		power_info);
+ 	if (rc < 0) {
+ 		pr_err("failed");
++		kfree(power_info->power_setting);
+ 		return -EINVAL;
+ 	}
+ 	return rc;
+@@ -866,7 +867,7 @@ int32_t msm_sensor_driver_probe(void *setting,
+ 
+ 	camera_info = kzalloc(sizeof(struct msm_camera_slave_info), GFP_KERNEL);
+ 	if (!camera_info)
+-		goto free_slave_info;
++		goto free_power_settings;
+ 
+ 	s_ctrl->sensordata->slave_info = camera_info;
+ 
+@@ -1037,6 +1038,9 @@ int32_t msm_sensor_driver_probe(void *setting,
+ 	s_ctrl->func_tbl->sensor_power_down(s_ctrl);
+ free_camera_info:
+ 	kfree(camera_info);
++free_power_settings:
++	kfree(s_ctrl->sensordata->power_info.power_setting);
++	kfree(s_ctrl->sensordata->power_info.power_down_setting);
+ free_slave_info:
+ 	kfree(slave_info);
+ 	return rc;
+-- 
+2.20.1
+

@@ -1,0 +1,78 @@
+From 4e38dc8f8124e3f777e67d4876f0e2fb5e3e09b6 Mon Sep 17 00:00:00 2001
+From: Wang Han <416810799@qq.com>
+Date: Fri, 5 May 2017 07:09:53 -0700
+Subject: [PATCH 97/99] power: Introduce Oneplus 3 fingerprintd thaw hack
+
+Taken from Oneplus 3, this hack will make fingerprintd recovery
+from suspend quickily.
+
+Signed-off-by: Shreyansh Lodha <slodha96@gmail.com>
+
+Small fixes for newer kernels since we're coming from 3.10.108..
+
+[xiaomi-ulysse: Update fingerprint daemon process name]
+
+Signed-off-by: Pierre2324 <pdbbasketball@gmail.com>
+Signed-off-by: PainKiller3 <ninadpatil100@gmail.com>
+Signed-off-by: Dhruv <dhruvgera61@gmail.com>
+---
+ kernel/power/process.c | 20 ++++++++++++++++++++
+ kernel/power/suspend.c |  4 ++++
+ 2 files changed, 24 insertions(+)
+
+diff --git a/kernel/power/process.c b/kernel/power/process.c
+index 9a12c835b6c2..fd28fa5def98 100644
+--- a/kernel/power/process.c
++++ b/kernel/power/process.c
+@@ -193,6 +193,26 @@ int freeze_kernel_threads(void)
+ 	return error;
+ }
+ 
++void thaw_fingerprintd(void)
++{
++	struct task_struct *p;
++
++	pm_freezing = false;
++	pm_nosig_freezing = false;
++
++	read_lock(&tasklist_lock);
++	for_each_process(p) {
++		if (!memcmp(p->comm, "android.hardware.biometrics.fingerprint@2.1-service", 13)) {
++			__thaw_task(p);
++			break;
++		}
++	}
++	read_unlock(&tasklist_lock);
++
++	pm_freezing = true;
++	pm_nosig_freezing = true;
++}
++
+ void thaw_processes(void)
+ {
+ 	struct task_struct *g, *p;
+diff --git a/kernel/power/suspend.c b/kernel/power/suspend.c
+index 2d0c99b3f34c..299dd5eede64 100644
+--- a/kernel/power/suspend.c
++++ b/kernel/power/suspend.c
+@@ -54,6 +54,8 @@ void freeze_set_ops(const struct platform_freeze_ops *ops)
+ 	unlock_system_sleep();
+ }
+ 
++extern void thaw_fingerprintd(void);
++
+ static void freeze_begin(void)
+ {
+ 	suspend_freeze_state = FREEZE_STATE_NONE;
+@@ -408,6 +410,8 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
+ 	enable_nonboot_cpus();
+ 
+  Platform_wake:
++	thaw_fingerprintd();
++
+ 	platform_resume_noirq(state);
+ 	dpm_resume_noirq(PMSG_RESUME);
+ 
+-- 
+2.20.1
+

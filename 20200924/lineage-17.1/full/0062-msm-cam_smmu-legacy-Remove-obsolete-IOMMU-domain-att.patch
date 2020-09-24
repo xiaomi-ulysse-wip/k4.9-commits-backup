@@ -1,0 +1,54 @@
+From 4eeffa7e95eb1a096dfbf098ab79b1fe1fdefbb6 Mon Sep 17 00:00:00 2001
+From: Mitchel Humpherys <mitchelh@codeaurora.org>
+Date: Tue, 7 Jun 2016 14:44:07 -0700
+Subject: [PATCH 62/99] msm: cam_smmu-legacy: Remove obsolete IOMMU domain
+ attribute
+
+The DOMAIN_ATTR_COHERENT_HTW_DISABLE IOMMU domain attribute is being
+removed.  SMMU coherency will be configured through the SMMU device tree
+nodes moving forward.  Remove the obsolete option.
+
+Change-Id: Iaa48cce6930c20bf1ef03f1049503253ccba66b9
+Signed-off-by: Mitchel Humpherys <mitchelh@codeaurora.org>
+Signed-off-by: Albert I <kras@raphielgang.org>
+---
+ .../msm/camera_v2-legacy/common/cam_smmu_api.c    | 15 ---------------
+ 1 file changed, 15 deletions(-)
+
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/common/cam_smmu_api.c b/drivers/media/platform/msm/camera_v2-legacy/common/cam_smmu_api.c
+index b244937a055a..e062980006e7 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/common/cam_smmu_api.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/common/cam_smmu_api.c
+@@ -1433,7 +1433,6 @@ static int cam_smmu_setup_cb(struct cam_context_bank_info *cb,
+ 	struct device *dev)
+ {
+ 	int rc = 0;
+-	int disable_htw = 1;
+ 
+ 	if (!cb || !dev) {
+ 		pr_err("Error: invalid input params\n");
+@@ -1471,21 +1470,7 @@ static int cam_smmu_setup_cb(struct cam_context_bank_info *cb,
+ 		goto end;
+ 	}
+ 
+-	/*
+-	 * Set the domain attributes
+-	 * disable L2 redirect since it decreases
+-	 * performance
+-	 */
+-	if (iommu_domain_set_attr(cb->mapping->domain,
+-		DOMAIN_ATTR_COHERENT_HTW_DISABLE,
+-		&disable_htw)) {
+-		pr_err("Error: couldn't disable coherent HTW\n");
+-		rc = -ENODEV;
+-		goto err_set_attr;
+-	}
+ 	return 0;
+-err_set_attr:
+-	arm_iommu_release_mapping(cb->mapping);
+ end:
+ 	return rc;
+ }
+-- 
+2.20.1
+

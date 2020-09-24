@@ -1,0 +1,41 @@
+From 65e08b7050853d36729083ae0b42d350a115b627 Mon Sep 17 00:00:00 2001
+From: Haibin Liu <haibinl@codeaurora.org>
+Date: Tue, 5 Dec 2017 15:06:18 +0800
+Subject: [PATCH 79/99] msm: sensor-legacy: actuator: add null pointer check
+ for i2c array
+
+Issue:
+i2c_reg_tbl may be null under error condition when set param.
+then, other actuator function still may use the i2c_reg_tbl as null.
+
+Fix:
+1) the assignment total_steps follow on kmalloc buffer.
+2) Add NULL pointer check for i2c tbl.
+
+CRs-Fixed: 2152401
+Bug: 65122765
+Change-Id: Ieec3d88e6dae0177787da0906f53d59ac4f5a624
+Signed-off-by: Haibin Liu <haibinl@codeaurora.org>
+Signed-off-by: Lau <laststandrighthere@gmail.com>
+Signed-off-by: Albert I <kras@raphielgang.org>
+---
+ .../msm/camera_v2-legacy/sensor/actuator/msm_actuator.c        | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/actuator/msm_actuator.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/actuator/msm_actuator.c
+index ed52f3376560..0a0dec58fe79 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/actuator/msm_actuator.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/actuator/msm_actuator.c
+@@ -647,6 +647,9 @@ static int32_t msm_actuator_move_focus(
+ 		a_ctrl->curr_step_pos, dest_step_pos, curr_lens_pos);
+ 
+ 	while (a_ctrl->curr_step_pos != dest_step_pos) {
++		if (a_ctrl->curr_region_index >= a_ctrl->region_size)
++			break;
++
+ 		step_boundary =
+ 			a_ctrl->region_params[a_ctrl->curr_region_index].
+ 			step_bound[dir];
+-- 
+2.20.1
+
