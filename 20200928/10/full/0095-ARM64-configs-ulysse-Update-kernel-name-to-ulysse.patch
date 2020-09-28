@@ -1,0 +1,22 @@
+From 4d9b72e2aca7d64e93897ddf2a144dc77204074b Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Wed, 23 Sep 2020 23:31:20 +0800
+Subject: [PATCH 095/103] ARM64: configs: ulysse: Update kernel name to -ulysse
+
+---
+ arch/arm64/configs/ulysse_defconfig | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm64/configs/ulysse_defconfig b/arch/arm64/configs/ulysse_defconfig
+index f104217be2b3..b59cdc2e4c4c 100644
+--- a/arch/arm64/configs/ulysse_defconfig
++++ b/arch/arm64/configs/ulysse_defconfig
+@@ -1,4 +1,4 @@
+-CONFIG_LOCALVERSION="-perf"
++CONFIG_LOCALVERSION="-ulysse"
+ # CONFIG_LOCALVERSION_AUTO is not set
+ # CONFIG_FHANDLE is not set
+ CONFIG_AUDIT=y
+-- 
+2.20.1
+

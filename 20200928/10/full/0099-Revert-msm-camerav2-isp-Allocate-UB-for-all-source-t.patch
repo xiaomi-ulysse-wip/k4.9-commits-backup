@@ -1,0 +1,44 @@
+From 4e716b14516eafc82ff641e81e4737b3dc77be29 Mon Sep 17 00:00:00 2001
+From: LuK1337 <priv.luk@gmail.com>
+Date: Fri, 7 Sep 2018 02:38:06 +0200
+Subject: [PATCH 099/103] Revert "msm: camerav2: isp: Allocate UB for all
+ source types"
+
+This reverts commit b6b377f38a60bb8cca42a72602263ef57ae2c66b.
+
+Change-Id: I369bcb2fd57d1374e4b9e4166055686b045ba2a2
+Signed-off-by: Albert I <kras@raphielgang.org>
+---
+ drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp40.c | 1 -
+ drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp47.c | 3 ++-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp40.c b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp40.c
+index 437fd514ba50..cffaf8425bc2 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp40.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp40.c
+@@ -1521,7 +1521,6 @@ static void msm_vfe40_update_camif_state(struct vfe_device *vfe_dev,
+ 		msm_camera_io_w_mb((update_state == DISABLE_CAMIF ? 0x0 : 0x6),
+ 				vfe_dev->vfe_base + 0x2F4);
+ 		vfe_dev->axi_data.src_info[VFE_PIX_0].active = 0;
+-		vfe_dev->axi_data.src_info[VFE_PIX_0].flag = 0;
+ 		/* testgen OFF*/
+ 		if (vfe_dev->axi_data.src_info[VFE_PIX_0].input_mux == TESTGEN)
+ 			msm_camera_io_w(1 << 1, vfe_dev->vfe_base + 0x93C);
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp47.c b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp47.c
+index 6671bdb294d1..f7b9bea7b459 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp47.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/isp/msm_isp47.c
+@@ -1746,7 +1746,8 @@ void msm_vfe47_cfg_axi_ub_equal_default(
+ 				vfe_dev->hw_info->vfe_ops.axi_ops.
+ 					ub_reg_offset(vfe_dev, i));
+ 		}
+-		if (!axi_data->free_wm[i])
++		if (!axi_data->free_wm[i] || frame_src != SRC_TO_INTF(
++				HANDLE_TO_IDX(axi_data->free_wm[i])))
+ 			continue;
+ 
+ 		delta = (uint64_t)axi_data->wm_image_size[i] *
+-- 
+2.20.1
+

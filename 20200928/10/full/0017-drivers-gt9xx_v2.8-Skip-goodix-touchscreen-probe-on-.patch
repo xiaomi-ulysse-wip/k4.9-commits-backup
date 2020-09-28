@@ -1,0 +1,45 @@
+From 569ae9ff2f8927015e51191563003ada8d3d0b3f Mon Sep 17 00:00:00 2001
+From: "R. Adi Permana" <romadhonadipermana279f@gmail.com>
+Date: Thu, 17 Sep 2020 13:42:10 +0000
+Subject: [PATCH 017/103] drivers: gt9xx_v2.8: Skip goodix touchscreen probe on
+ shenchao panel
+
+Shenchao panel uses fts touchscreen. So don't probe goodix touchscreen if schenchao panel is detected.
+
+Original implementation by Xiaomi : https://github.com/MiCode/Xiaomi_Kernel_OpenSource/blob/ulysse-n-oss/drivers/input/touchscreen/gt9xx/gt9xx.c#L2267
+---
+ drivers/input/touchscreen/gt9xx_v2.8/gt9xx.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/drivers/input/touchscreen/gt9xx_v2.8/gt9xx.c b/drivers/input/touchscreen/gt9xx_v2.8/gt9xx.c
+index 03328d040539..dfd5aa8a0eb8 100644
+--- a/drivers/input/touchscreen/gt9xx_v2.8/gt9xx.c
++++ b/drivers/input/touchscreen/gt9xx_v2.8/gt9xx.c
+@@ -39,6 +39,10 @@ static const char *goodix_input_phys = "input/ts";
+ struct i2c_client *i2c_connect_client;
+ static struct proc_dir_entry *gtp_config_proc;
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++extern char g_lcd_id[128];
++#endif
++
+ enum doze {
+ 	DOZE_DISABLED = 0,
+ 	DOZE_ENABLED = 1,
+@@ -2031,6 +2035,13 @@ static int gtp_probe(struct i2c_client *client, const struct i2c_device_id *id)
+ 	struct goodix_ts_data *ts;
+ 	struct goodix_ts_platform_data *pdata;
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++    if (strstr(g_lcd_id, "shenchao") != NULL) {
++	pr_err("not the goodix tp,skiping the gt9xx probe func");
++		return -ENODEV;
++	}
++#endif
++
+ 	/* do NOT remove these logs */
+ 	dev_info(&client->dev, "GTP Driver Version: %s\n", GTP_DRIVER_VERSION);
+ 	dev_info(&client->dev, "GTP I2C Address: 0x%02x\n", client->addr);
+-- 
+2.20.1
+

@@ -1,0 +1,44 @@
+From 243f31eafc21d97bc7df09eb4426eafb6388b463 Mon Sep 17 00:00:00 2001
+From: Lau <laststandrighthere@gmail.com>
+Date: Mon, 20 Jul 2020 06:53:40 +0800
+Subject: [PATCH 092/103] fingerprint: fpc/goodix: Drop the msecs to jiffies
+ conversion
+
+There's no point in doing this since __pm_wakeup_event() expects
+msecs. Seems to fix the "delay" to wake the device when using fp.
+
+Signed-off-by: Lau <laststandrighthere@gmail.com>
+---
+ drivers/input/fingerprint/fpc_ugg/fpc1020_tee.c | 2 +-
+ drivers/input/fingerprint/gf3208_ugg/gf_spi.c   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/input/fingerprint/fpc_ugg/fpc1020_tee.c b/drivers/input/fingerprint/fpc_ugg/fpc1020_tee.c
+index 6a1650b0bc71..b7659587a44c 100644
+--- a/drivers/input/fingerprint/fpc_ugg/fpc1020_tee.c
++++ b/drivers/input/fingerprint/fpc_ugg/fpc1020_tee.c
+@@ -403,7 +403,7 @@ static irqreturn_t fpc1020_irq_handler(int irq, void *handle)
+ 
+ 	dev_dbg(fpc1020->dev, "%s\n", __func__);
+ 
+-	__pm_wakeup_event(&fpc1020->ttw_wl, msecs_to_jiffies(FPC_TTW_HOLD_TIME));
++	__pm_wakeup_event(&fpc1020->ttw_wl, FPC_TTW_HOLD_TIME);
+ 
+ 	sysfs_notify(&fpc1020->dev->kobj, NULL, dev_attr_irq.attr.name);
+ 
+diff --git a/drivers/input/fingerprint/gf3208_ugg/gf_spi.c b/drivers/input/fingerprint/gf3208_ugg/gf_spi.c
+index 9905a5bf86c3..6a0e6e6c793b 100644
+--- a/drivers/input/fingerprint/gf3208_ugg/gf_spi.c
++++ b/drivers/input/fingerprint/gf3208_ugg/gf_spi.c
+@@ -489,7 +489,7 @@ static irqreturn_t gf_irq(int irq, void *handle)
+ {
+ #if defined(GF_NETLINK_ENABLE)
+ 	char temp = GF_NET_EVENT_IRQ;
+-	__pm_wakeup_event(&fp_wakelock, msecs_to_jiffies(WAKELOCK_HOLD_TIME));
++	__pm_wakeup_event(&fp_wakelock, WAKELOCK_HOLD_TIME);
+ 	sendnlmsg(&temp);
+ #elif defined (GF_FASYNC)
+ 	struct gf_dev *gf_dev = &gf;
+-- 
+2.20.1
+

@@ -1,0 +1,40 @@
+From 2502fae378190cfd1c2cc9ca9fa4c1042b6d3eb7 Mon Sep 17 00:00:00 2001
+From: Dicky Herlambang <herlambangdicky5@gmail.com>
+Date: Sat, 8 Aug 2020 00:16:58 +0700
+Subject: [PATCH 045/103] techpack: audio: q6core: Drop LSM API service on
+ legacy avcs
+
+Our techpack seems doesn't implemented LSM API yet on the source, it make compilation issue
+with missing declaration from LSM_API. Need several commit to implement that think.
+
+Drop this think for now.
+
+Signed-off-by: Dicky Herlambang <herlambangdicky5@gmail.com>
+---
+ techpack/audio/dsp/q6core.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/techpack/audio/dsp/q6core.c b/techpack/audio/dsp/q6core.c
+index 43540cab1675..b52d0554406e 100644
+--- a/techpack/audio/dsp/q6core.c
++++ b/techpack/audio/dsp/q6core.c
+@@ -27,7 +27,6 @@
+ #include "adsp_err.h"
+ 
+ /* For legacy version retrieval */
+-#include <dsp/q6lsm.h>
+ #include <dsp/q6adm-v2.h>
+ #include <dsp/q6afe-v2.h>
+ 
+@@ -642,8 +641,6 @@ EXPORT_SYMBOL(q6core_get_fwk_version_size);
+ static int q6core_get_legacy_avcs_fwk_version(uint32_t service_id)
+ {
+ 	switch (service_id) {
+-	case APRV2_IDS_SERVICE_ID_ADSP_LSM_V:
+-		return LSM_API_VERSION_V2;
+ 	case APRV2_IDS_SERVICE_ID_ADSP_ADM_V:
+ 		return ADSP_ADM_API_VERSION_V1;
+ 	case APRV2_IDS_SERVICE_ID_ADSP_ASM_V:
+-- 
+2.20.1
+

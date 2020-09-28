@@ -1,0 +1,32 @@
+From 7540dd051df116b18fd10ce92be7fad089bb68ec Mon Sep 17 00:00:00 2001
+From: "R. Adi Permana" <romadhonadipermana279f@gmail.com>
+Date: Wed, 16 Sep 2020 05:33:13 +0000
+Subject: [PATCH 030/103] include: input-event-codes: Import Xiaomi changes for
+ ulysse
+
+* from 3.18
+---
+ include/uapi/linux/input-event-codes.h | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/include/uapi/linux/input-event-codes.h b/include/uapi/linux/input-event-codes.h
+index 29ef1e3697af..21f3ff7861f5 100644
+--- a/include/uapi/linux/input-event-codes.h
++++ b/include/uapi/linux/input-event-codes.h
+@@ -336,6 +336,13 @@
+ 
+ #define KEY_MICMUTE		248	/* Mute / unmute the microphone */
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++#define KEY_ANT_CONNECT         0x292
++#define KEY_ANT_UNCONNECT       0x293
++
++#define INPUT_PROP_NO_DUMMY_RELEASE	0x06	/* no dummy event */
++#endif
++
+ /* Code 255 is reserved for special needs of AT keyboard driver */
+ 
+ #define BTN_MISC		0x100
+-- 
+2.20.1
+

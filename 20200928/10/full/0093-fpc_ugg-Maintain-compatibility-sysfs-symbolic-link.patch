@@ -1,0 +1,92 @@
+From 4f803fd2a852ea0913f1bd06cbc2cef49e73152b Mon Sep 17 00:00:00 2001
+From: Yuri Konotopov <ykonotopov@gnome.org>
+Date: Wed, 29 Apr 2020 13:55:04 +0400
+Subject: [PATCH 093/103] fpc_ugg: Maintain compatibility sysfs symbolic link
+
+Using 3.18 kernel fpc sysfs path was /sys/devices/soc/soc:fpc1020,
+however in 4.9 it is now in /sys/devices/platform/soc/soc:fpc1020.
+This is a problem for proprietary userland, which is hard to change, so
+let's maintain compatibility soc symlink for mido.
+
+See-Also: nE0sIghT/android_kernel_xiaomi_msm8953#18
+[ProtoChuz : mido -> santoni]
+[xiaomi-ulysse : santoni -> ulysse]
+---
+ .../input/fingerprint/fpc_ugg/fpc1020_tee.c   | 40 +++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+
+diff --git a/drivers/input/fingerprint/fpc_ugg/fpc1020_tee.c b/drivers/input/fingerprint/fpc_ugg/fpc1020_tee.c
+index b7659587a44c..8c41525b828f 100644
+--- a/drivers/input/fingerprint/fpc_ugg/fpc1020_tee.c
++++ b/drivers/input/fingerprint/fpc_ugg/fpc1020_tee.c
+@@ -55,6 +55,10 @@
+ static struct proc_dir_entry *proc_entry;
+ extern int fpsensor;
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++static struct kernfs_node *soc_symlink = NULL;
++#endif
++
+ static const char * const pctl_names[] = {
+ 	"fpc1020_reset_reset",
+ 	"fpc1020_reset_active",
+@@ -464,6 +468,12 @@ static int fpc1020_probe(struct platform_device *pdev)
+ 	struct fpc1020_data *fpc1020 = devm_kzalloc(dev, sizeof(*fpc1020),
+ 			GFP_KERNEL);
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	struct device *platform_dev;
++	struct kobject *soc_kobj;
++	struct kernfs_node *devices_node, *soc_node;
++#endif
++
+ 	if (!fpc1020) {
+ 		dev_err(dev,
+ 			"failed to allocate memory for struct fpc1020_data\n");
+@@ -574,6 +584,30 @@ static int fpc1020_probe(struct platform_device *pdev)
+ 			}
+ 
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	if(!dev->parent || !dev->parent->parent) {
++		dev_warn(dev, "Parent platform device not found");
++		goto exit;
++	}
++
++	platform_dev = dev->parent->parent;
++	if(strcmp(kobject_name(&platform_dev->kobj), "platform")) {
++		dev_warn(dev, "Parent platform device name not matched: %s", kobject_name(&platform_dev->kobj));
++		goto exit;
++	}
++
++	devices_node = platform_dev->kobj.sd->parent;
++	soc_kobj = &dev->parent->kobj;
++	soc_node = soc_kobj->sd;
++	kernfs_get(soc_node);
++
++	soc_symlink = kernfs_create_link(devices_node, kobject_name(soc_kobj), soc_node);
++	kernfs_put(soc_node);
++	if(IS_ERR(soc_symlink)) {
++		dev_warn(dev, "Unable to create soc symlink");
++	}
++#endif
++
+ 	dev_info(dev, "%s: ok\n", __func__);
+ 
+ exit:
+@@ -584,6 +618,12 @@ static int fpc1020_remove(struct platform_device *pdev)
+ {
+ 	struct fpc1020_data *fpc1020 = platform_get_drvdata(pdev);
+ 
++#ifdef CONFIG_MACH_XIAOMI_ULYSSE
++	if(!IS_ERR(soc_symlink)) {
++		kernfs_remove_by_name(soc_symlink->parent, soc_symlink->name);
++	}
++#endif
++
+ 	sysfs_remove_group(&pdev->dev.kobj, &attribute_group);
+ 	mutex_destroy(&fpc1020->lock);
+ 	wakeup_source_trash(&fpc1020->ttw_wl);
+-- 
+2.20.1
+

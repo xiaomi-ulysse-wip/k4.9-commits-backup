@@ -1,0 +1,24 @@
+From fc95add3753d05d142bf581dd5bf5b6fd37caf6e Mon Sep 17 00:00:00 2001
+From: "R. Adi Permana" <romadhonadipermana279f@gmail.com>
+Date: Mon, 14 Sep 2020 10:22:49 +0000
+Subject: [PATCH 046/103] ARM64: dts: ulysse: Delete pa-therm1-adc node
+
+---
+ arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi b/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi
+index 728ce60839a1..54d9d87cb24c 100644
+--- a/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi
++++ b/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi
+@@ -63,4 +63,6 @@
+ 	qcom,no-aarch64;
+ };
+ 
+-
++&thermal_zones {
++    /delete-node/ pa-therm1-adc;
++};
+-- 
+2.20.1
+

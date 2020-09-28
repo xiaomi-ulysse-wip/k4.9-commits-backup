@@ -1,0 +1,39 @@
+From d7599356c652313db5f29284e1d44f028a011aa5 Mon Sep 17 00:00:00 2001
+From: Vijay kumar Tumati <vtumati@codeaurora.org>
+Date: Thu, 8 Feb 2018 15:08:11 +0530
+Subject: [PATCH 067/103] msm: camera-legacy: Handle actuator close before
+ power down
+
+In case when userspace process is killed, actuator
+subdev is first closed and then power down is called.
+In this sequence, we need to handle actuator states
+properly to shutdown all the regulators during close.
+
+Change-Id: I843b463a1b576971e16d1554ded20984dd0ec436
+Signed-off-by: Vijay kumar Tumati <vtumati@codeaurora.org>
+Signed-off-by: Albert I <kras@raphielgang.org>
+---
+ .../msm/camera_v2-legacy/sensor/actuator/msm_actuator.c    | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/drivers/media/platform/msm/camera_v2-legacy/sensor/actuator/msm_actuator.c b/drivers/media/platform/msm/camera_v2-legacy/sensor/actuator/msm_actuator.c
+index 5657d25a9769..ed52f3376560 100644
+--- a/drivers/media/platform/msm/camera_v2-legacy/sensor/actuator/msm_actuator.c
++++ b/drivers/media/platform/msm/camera_v2-legacy/sensor/actuator/msm_actuator.c
+@@ -1588,6 +1588,13 @@ static int msm_actuator_close(struct v4l2_subdev *sd,
+ 	}
+ 	kfree(a_ctrl->i2c_reg_tbl);
+ 	a_ctrl->i2c_reg_tbl = NULL;
++	if (a_ctrl->actuator_state == ACT_OPS_ACTIVE) {
++		rc = msm_actuator_power_down(a_ctrl);
++		if (rc < 0) {
++			pr_err("%s:%d Actuator Power down failed\n",
++				__func__, __LINE__);
++		}
++	}
+ 	a_ctrl->actuator_state = ACT_DISABLE_STATE;
+ 	mutex_unlock(a_ctrl->actuator_mutex);
+ 	CDBG("Exit\n");
+-- 
+2.20.1
+

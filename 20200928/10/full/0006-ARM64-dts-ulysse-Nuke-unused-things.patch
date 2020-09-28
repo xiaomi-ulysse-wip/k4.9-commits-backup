@@ -1,0 +1,47 @@
+From 126183f124b3b8a1c0ef722719f10f0afedf5319 Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Sat, 29 Aug 2020 03:08:50 +0800
+Subject: [PATCH 006/103] ARM64: dts: ulysse: Nuke unused things
+
+* We don't use PMI8937, at least it doesn't exist in our 3.18 that worked well for long time.
+* Also, We don't have NFC
+---
+ .../boot/dts/qcom/ulysse-common/common-disable.dtsi  | 12 ++++++++++++
+ arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi   |  2 ++
+ 2 files changed, 14 insertions(+)
+ create mode 100755 arch/arm64/boot/dts/qcom/ulysse-common/common-disable.dtsi
+
+diff --git a/arch/arm64/boot/dts/qcom/ulysse-common/common-disable.dtsi b/arch/arm64/boot/dts/qcom/ulysse-common/common-disable.dtsi
+new file mode 100755
+index 000000000000..8925658a3ae0
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/ulysse-common/common-disable.dtsi
+@@ -0,0 +1,12 @@
++&spmi_bus {
++	/delete-node/ qcom,pmi8937@2;
++	/delete-node/ qcom,pmi8937@3;
++};
++
++&i2c_5 {
++	/delete-node/ nq@28;
++};
++
++&pm8937_gpios {
++	/delete-node/ nfc_clk;
++};
+diff --git a/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi b/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi
+index aa84ed736b4a..a95998a3e6da 100644
+--- a/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi
++++ b/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi
+@@ -12,6 +12,8 @@
+  * GNU General Public License for more details.
+  */
+ 
++#include "common-disable.dtsi"
++
+ #include "common-audio.dtsi"
+ #include "common-battery.dtsi"
+ #include "common-mdss.dtsi"
+-- 
+2.20.1
+

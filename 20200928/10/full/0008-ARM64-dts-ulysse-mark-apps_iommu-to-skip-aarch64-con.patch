@@ -1,0 +1,29 @@
+From d5e49d29b770b591375184ab16944ba911e367e3 Mon Sep 17 00:00:00 2001
+From: Yuri Konotopov <ykonotopov@gnome.org>
+Date: Tue, 21 Apr 2020 00:16:08 +0400
+Subject: [PATCH 008/103] ARM64: dts: ulysse: mark apps_iommu to skip aarch64
+ context format
+
+See-Also: https://github.com/nE0sIghT/android_kernel_xiaomi_msm8953/issues/1
+See-Also: https://github.com/nE0sIghT/android_kernel_xiaomi_msm8953/issues/5
+---
+ arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi b/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi
+index a95998a3e6da..4dec8e2ba9b4 100644
+--- a/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi
++++ b/arch/arm64/boot/dts/qcom/ulysse-common/common.dtsi
+@@ -53,3 +53,9 @@
+ 	cd-gpios = <&tlmm 67 0x0>;
+ };
+ 
++
++&apps_iommu {
++	qcom,no-aarch64;
++};
++
++
+-- 
+2.20.1
+

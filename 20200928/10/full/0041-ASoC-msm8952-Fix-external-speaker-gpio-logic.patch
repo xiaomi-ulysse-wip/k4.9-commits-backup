@@ -1,0 +1,32 @@
+From 6ffd74d6e65065f74678c39e845d8e364ccaf4db Mon Sep 17 00:00:00 2001
+From: Artem Borisov <dedsa2002@gmail.com>
+Date: Fri, 16 Nov 2018 23:31:44 +0400
+Subject: [PATCH 041/103] ASoC: msm8952: Fix external speaker gpio logic
+
+The driver parses qcom,msm-spk-ext-pa for both gpio and pinctrl phandle.
+That's obviously wrong as it doesn't let us to define both, even though
+it's required for the proper external speaker functionality.
+Let's expose an additional variable "qcom,cdc-ext-pa-gpios" and use it
+for pinctrl phandle.
+
+Change-Id: I1c5fbaeaa575f07c320b3fa8670e51abaffaa0e3
+---
+ techpack/audio/asoc/msm8952.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/techpack/audio/asoc/msm8952.c b/techpack/audio/asoc/msm8952.c
+index eacbb213b9c6..f887020b3d1f 100644
+--- a/techpack/audio/asoc/msm8952.c
++++ b/techpack/audio/asoc/msm8952.c
+@@ -3458,7 +3458,7 @@ static int msm8952_asoc_machine_probe(struct platform_device *pdev)
+ 	}
+ 
+ 	pdata->spk_ext_pa_gpio_p = of_parse_phandle(pdev->dev.of_node,
+-							spk_ext_pa, 0);
++							"qcom,cdc-ext-pa-gpios", 0);
+ 
+ 	ret = is_us_eu_switch_gpio_support(pdev, pdata);
+ 	if (ret < 0) {
+-- 
+2.20.1
+

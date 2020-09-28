@@ -1,0 +1,49 @@
+From 49288ede9517c43c031daa183cbea7b5f015ec14 Mon Sep 17 00:00:00 2001
+From: "R. Adi Permana" <romadhonadipermana279f@gmail.com>
+Date: Sat, 26 Sep 2020 22:44:14 +0700
+Subject: [PATCH 102/103] TEMP: drivers: bq2560x-charger:  Fix usb detection
+
+---
+ drivers/power/supply/qcom/bq2560x_charger.c | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/power/supply/qcom/bq2560x_charger.c b/drivers/power/supply/qcom/bq2560x_charger.c
+index 01bf511813c0..64d39c2a90f2 100644
+--- a/drivers/power/supply/qcom/bq2560x_charger.c
++++ b/drivers/power/supply/qcom/bq2560x_charger.c
+@@ -53,7 +53,6 @@
+ 
+ #undef pr_info
+ #define pr_info pr_err
+-#define dev_dbg dev_err
+ 
+ #else
+ #undef pr_info
+@@ -1286,16 +1285,14 @@ static void bq2560x_external_power_changed(struct power_supply *psy)
+ 
+ 	ret = 0;
+ 	bq2560x_get_prop_charge_status(bq);
+-	if (bq->usb_present && (current_limit != 2)) {
++	if (bq->usb_present) {
+ 		if (prop.intval == 0) {
+ 			pr_err("set usb online\n");
+-			power_supply_set_property(bq->usb_psy, POWER_SUPPLY_PROP_ONLINE, true);
+ 			ret = 1;
+ 		}
+ 	} else {
+ 		if (prop.intval == 1) {
+ 			pr_err("set usb offline\n");
+-			power_supply_set_property(bq->usb_psy, POWER_SUPPLY_PROP_ONLINE, false);
+ 			ret = 0;
+ 		}
+ 	}
+@@ -2755,4 +2752,4 @@ module_i2c_driver(bq2560x_charger_driver);
+ 
+ MODULE_DESCRIPTION("TI BQ2560x Charger Driver");
+ MODULE_LICENSE("GPL v2");
+-MODULE_AUTHOR("Texas Instruments");
+\ No newline at end of file
++MODULE_AUTHOR("Texas Instruments");
+-- 
+2.20.1
+

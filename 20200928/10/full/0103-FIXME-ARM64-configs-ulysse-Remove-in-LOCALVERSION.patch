@@ -1,0 +1,23 @@
+From 9ca5d98a925554c1d8776ea75caaaeabc06c5084 Mon Sep 17 00:00:00 2001
+From: zqm64 <zqm64@outlook.com>
+Date: Sun, 27 Sep 2020 11:17:33 +0800
+Subject: [PATCH 103/103] FIXME: ARM64: configs: ulysse: Remove & in
+ LOCALVERSION
+
+---
+ arch/arm64/configs/ulysse_defconfig | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm64/configs/ulysse_defconfig b/arch/arm64/configs/ulysse_defconfig
+index 75eae3a075b4..33ad6b111fc1 100644
+--- a/arch/arm64/configs/ulysse_defconfig
++++ b/arch/arm64/configs/ulysse_defconfig
+@@ -1,4 +1,4 @@
+-CONFIG_LOCALVERSION="-ulysse\\\&Gabuters"
++CONFIG_LOCALVERSION="-ulysse-Gabuters"
+ # CONFIG_LOCALVERSION_AUTO is not set
+ # CONFIG_FHANDLE is not set
+ CONFIG_AUDIT=y
+-- 
+2.20.1
+
